@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Comet.Services;
 using Comet.Utilities;
 using Microsoft.UI.Dispatching;
@@ -165,12 +166,17 @@ public sealed partial class MainPage
     private void SerialPort_BytesReceived(object? sender, SerialBytesReceivedEventArgs e)
     {
         _receiveQueue.Enqueue(e.Data);
+        ScheduleReceiveDrain();
+    }
+
+    private void ScheduleReceiveDrain()
+    {
         if (Interlocked.Exchange(ref _receiveDispatchScheduled, 1) != 0)
         {
             return;
         }
 
-        if (!DispatcherQueue.TryEnqueue(DrainReceivedData))
+        if (!DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, DrainReceivedData))
         {
             Interlocked.Exchange(ref _receiveDispatchScheduled, 0);
         }
@@ -178,41 +184,59 @@ public sealed partial class MainPage
 
     private void DrainReceivedData()
     {
-        Interlocked.Exchange(ref _receiveDispatchScheduled, 0);
         if (_isUnloaded)
         {
             while (_receiveQueue.TryDequeue(out _))
             {
             }
 
+            Interlocked.Exchange(ref _receiveDispatchScheduled, 0);
             return;
         }
 
+        const int maximumBatchBytes = 256 * 1024;
+        var drainStarted = Stopwatch.GetTimestamp();
         var chunks = new List<byte[]>();
         var totalLength = 0;
         while (_receiveQueue.TryDequeue(out var chunk))
         {
             chunks.Add(chunk);
             totalLength += chunk.Length;
+            if (totalLength >= maximumBatchBytes ||
+                Stopwatch.GetElapsedTime(drainStarted) >= TimeSpan.FromMilliseconds(8))
+            {
+                break;
+            }
         }
 
-        if (totalLength == 0)
+        if (totalLength > 0)
+        {
+            var data = new byte[totalLength];
+            var offset = 0;
+            foreach (var chunk in chunks)
+            {
+                Buffer.BlockCopy(chunk, 0, data, offset, chunk.Length);
+                offset += chunk.Length;
+            }
+
+            _receivedBytes += data.Length;
+            var text = GetSelectedEncoding().GetString(data);
+            AppendEntry("RX", text, rawBytes: data);
+        }
+
+        if (!_receiveQueue.IsEmpty &&
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, DrainReceivedData))
         {
             return;
         }
 
-        var data = new byte[totalLength];
-        var offset = 0;
-        foreach (var chunk in chunks)
+        // Close the enqueue race: data may arrive after the empty check but before
+        // the scheduled flag is released.
+        Interlocked.Exchange(ref _receiveDispatchScheduled, 0);
+        if (!_receiveQueue.IsEmpty)
         {
-            Buffer.BlockCopy(chunk, 0, data, offset, chunk.Length);
-            offset += chunk.Length;
+            ScheduleReceiveDrain();
         }
-
-        _receivedBytes += data.Length;
-        var text = GetSelectedEncoding().GetString(data);
-        AppendEntry("RX", text, rawBytes: data);
-        UpdateCounters();
     }
 
     private void SerialPort_ErrorOccurred(string message)

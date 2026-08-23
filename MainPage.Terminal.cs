@@ -14,6 +14,8 @@ public sealed partial class MainPage
     {
         _terminalRenderTimer.Stop();
         _terminalRenderPending = false;
+        _terminalFullRenderRequired = false;
+        _pendingTerminalAppend.Clear();
         _terminalBuffer.Clear();
         SetTerminalText(string.Empty, preserveSelection: false);
         _receivedBytes = 0;
@@ -26,6 +28,8 @@ public sealed partial class MainPage
     {
         _terminalRenderTimer.Stop();
         _terminalRenderPending = false;
+        _terminalFullRenderRequired = false;
+        _pendingTerminalAppend.Clear();
         _terminalBuffer.SetReceiveAsHex(ReceiveHexCheckBox.IsChecked == true);
         var preserveSelection = TerminalTextBox.SelectionLength > 0 || AutoScrollCheckBox.IsChecked != true;
         SetTerminalText(_terminalBuffer.GetText(), preserveSelection);
@@ -152,9 +156,20 @@ public sealed partial class MainPage
         };
 
         var shouldDisplay = showDetails || direction == "RX";
-        if (!_terminalBuffer.Append(entry, shouldDisplay, ReceiveHexCheckBox.IsChecked == true))
+        var update = _terminalBuffer.Append(entry, shouldDisplay, ReceiveHexCheckBox.IsChecked == true);
+        if (!update.HasChange)
         {
             return;
+        }
+
+        if (update.RequiresFullRender)
+        {
+            _terminalFullRenderRequired = true;
+            _pendingTerminalAppend.Clear();
+        }
+        else if (!_terminalFullRenderRequired)
+        {
+            _pendingTerminalAppend.Append(update.AppendedText);
         }
 
         ScheduleTerminalRender();
@@ -168,6 +183,12 @@ public sealed partial class MainPage
             return;
         }
 
+        _terminalRenderTimer.Interval = TimeSpan.FromMilliseconds(_terminalBuffer.CurrentLength switch
+        {
+            < 250_000 => 50,
+            < 750_000 => 100,
+            _ => 200
+        });
         _terminalRenderPending = true;
         _terminalRenderTimer.Start();
     }
@@ -175,15 +196,28 @@ public sealed partial class MainPage
     private void TerminalRenderTimer_Tick(DispatcherQueueTimer sender, object args)
     {
         _terminalRenderPending = false;
+        UpdateCounters();
         var preserveSelection = TerminalTextBox.SelectionLength > 0 || AutoScrollCheckBox.IsChecked != true;
-        SetTerminalText(_terminalBuffer.GetText(), preserveSelection);
+        if (_terminalFullRenderRequired)
+        {
+            _terminalFullRenderRequired = false;
+            _pendingTerminalAppend.Clear();
+            SetTerminalText(_terminalBuffer.GetText(), preserveSelection);
+            return;
+        }
+
+        var appendedText = _pendingTerminalAppend.ToString();
+        _pendingTerminalAppend.Clear();
+        if (appendedText.Length > 0)
+        {
+            AppendTerminalText(appendedText, preserveSelection);
+        }
     }
 
     private void SetTerminalText(string text, bool preserveSelection)
     {
         var selectionStart = TerminalTextBox.SelectionStart;
         var selectionLength = TerminalTextBox.SelectionLength;
-        _displayedTerminalText = text;
         _isUpdatingTerminalText = true;
         try
         {
@@ -206,13 +240,59 @@ public sealed partial class MainPage
 
         if (!preserveSelection)
         {
-            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, ScrollTerminalToEnd);
+            QueueScrollTerminalToEnd();
         }
+    }
+
+    private void AppendTerminalText(string appendedText, bool preserveSelection)
+    {
+        var selectionStart = TerminalTextBox.SelectionStart;
+        var selectionLength = TerminalTextBox.SelectionLength;
+        _isUpdatingTerminalText = true;
+        try
+        {
+            TerminalTextBox.Select(TerminalTextBox.Text.Length, 0);
+            TerminalTextBox.SelectedText = appendedText;
+            if (preserveSelection)
+            {
+                var textLength = TerminalTextBox.Text.Length;
+                var safeStart = Math.Min(selectionStart, textLength);
+                var safeLength = Math.Min(selectionLength, textLength - safeStart);
+                TerminalTextBox.Select(safeStart, safeLength);
+            }
+            else
+            {
+                TerminalTextBox.Select(TerminalTextBox.Text.Length, 0);
+            }
+        }
+        finally
+        {
+            _isUpdatingTerminalText = false;
+        }
+
+        if (!preserveSelection)
+        {
+            QueueScrollTerminalToEnd();
+        }
+    }
+
+    private void QueueScrollTerminalToEnd()
+    {
+        if (_terminalScrollPending)
+        {
+            return;
+        }
+
+        _terminalScrollPending = true;
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            _terminalScrollPending = false;
+            ScrollTerminalToEnd();
+        });
     }
 
     private void ScrollTerminalToEnd()
     {
-        TerminalTextBox.UpdateLayout();
         var scrollViewer = FindVisualDescendant<ScrollViewer>(TerminalTextBox);
         scrollViewer?.ChangeView(null, scrollViewer.ScrollableHeight, null, disableAnimation: true);
     }

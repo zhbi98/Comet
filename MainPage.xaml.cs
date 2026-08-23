@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.Text;
 using Comet.Features.Terminal;
 using Comet.Models;
 using Comet.Services;
@@ -27,9 +28,11 @@ public sealed partial class MainPage : Page
     private long _receivedBytes;
     private long _sentBytes;
     private int _receiveDispatchScheduled;
-    private string _displayedTerminalText = string.Empty;
+    private readonly StringBuilder _pendingTerminalAppend = new();
     private bool _isUpdatingTerminalText;
     private bool _terminalRenderPending;
+    private bool _terminalFullRenderRequired;
+    private bool _terminalScrollPending;
     private bool _isUnloaded;
 
     public MainPage()
@@ -45,7 +48,7 @@ public sealed partial class MainPage : Page
         _repeatTimer.Tick += RepeatTimer_Tick;
 
         _terminalRenderTimer = DispatcherQueue.CreateTimer();
-        _terminalRenderTimer.Interval = TimeSpan.FromMilliseconds(33);
+        _terminalRenderTimer.Interval = TimeSpan.FromMilliseconds(50);
         _terminalRenderTimer.IsRepeating = false;
         _terminalRenderTimer.Tick += TerminalRenderTimer_Tick;
 

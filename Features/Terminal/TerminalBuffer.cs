@@ -4,6 +4,14 @@ using Comet.Utilities;
 
 namespace Comet.Features.Terminal;
 
+internal readonly record struct TerminalBufferUpdate(
+    bool HasChange,
+    bool RequiresFullRender,
+    string AppendedText)
+{
+    public static TerminalBufferUpdate None => new(false, false, string.Empty);
+}
+
 /// <summary>
 /// Owns synchronized text and HEX snapshots of the bounded terminal content.
 /// </summary>
@@ -17,19 +25,21 @@ internal sealed class TerminalBuffer(int maxCharacters)
 
     public bool IsEmpty => CurrentDisplay.IsEmpty;
 
+    public int CurrentLength => CurrentDisplay.Length;
+
     public string GetText() => CurrentDisplay.GetText();
 
-    public bool Append(TerminalEntry entry, bool includeInDisplay, bool receiveAsHex)
+    public TerminalBufferUpdate Append(TerminalEntry entry, bool includeInDisplay, bool receiveAsHex)
     {
         _receiveAsHex = receiveAsHex;
         if (!includeInDisplay)
         {
-            return false;
+            return TerminalBufferUpdate.None;
         }
 
-        _textDisplay.Append(entry, receiveAsHex: false);
-        _hexDisplay.Append(entry, receiveAsHex: true);
-        return true;
+        var textUpdate = _textDisplay.Append(entry, receiveAsHex: false);
+        var hexUpdate = _hexDisplay.Append(entry, receiveAsHex: true);
+        return receiveAsHex ? hexUpdate : textUpdate;
     }
 
     public void SetReceiveAsHex(bool receiveAsHex) => _receiveAsHex = receiveAsHex;
@@ -50,10 +60,13 @@ internal sealed class TerminalBuffer(int maxCharacters)
 
         public bool IsEmpty => _text.Length == 0;
 
+        public int Length => _text.Length;
+
         public string GetText() => _text.ToString();
 
-        public void Append(TerminalEntry entry, bool receiveAsHex)
+        public TerminalBufferUpdate Append(TerminalEntry entry, bool receiveAsHex)
         {
+            var previousLength = _text.Length;
             var displayText = GetDisplayText(entry, receiveAsHex);
             var isDisplayedAsHex = IsDisplayedAsHex(entry, receiveAsHex);
 
@@ -92,7 +105,15 @@ internal sealed class TerminalBuffer(int maxCharacters)
             _lastEntryWasDetailed = entry.IsDetailed;
             _lastEntryWasHex = isDisplayedAsHex;
             _lastDetailedDirection = entry.IsDetailed ? entry.Direction : null;
-            TrimToCapacity(receiveAsHex);
+            if (TrimToCapacity(receiveAsHex))
+            {
+                return new TerminalBufferUpdate(true, true, string.Empty);
+            }
+
+            return new TerminalBufferUpdate(
+                true,
+                false,
+                _text.ToString(previousLength, _text.Length - previousLength));
         }
 
         public void Clear()
@@ -135,51 +156,70 @@ internal sealed class TerminalBuffer(int maxCharacters)
             }
         }
 
-        private void TrimToCapacity(bool receiveAsHex)
+        private bool TrimToCapacity(bool receiveAsHex)
         {
             if (_text.Length <= maxCharacters)
             {
-                return;
+                return false;
             }
 
-            var minimumRemoveCount = _text.Length - maxCharacters;
-            var lineBoundary = minimumRemoveCount;
-            while (lineBoundary < _text.Length && _text[lineBoundary] != '\n')
+            // Leave headroom instead of shifting a nearly full StringBuilder for
+            // every incoming serial packet. At the production limit this removes
+            // about 12.5% in one operation and makes trimming infrequent.
+            var desiredHeadroom = Math.Clamp(maxCharacters / 8, 16 * 1024, 128 * 1024);
+            var headroom = Math.Min(desiredHeadroom, Math.Max(1, maxCharacters / 2));
+            var targetRemoveCount = Math.Min(
+                _text.Length,
+                _text.Length - maxCharacters + headroom);
+
+            // Prefer a nearby line boundary, but never scan the remainder of a
+            // megabyte-long stream when the data contains no line breaks.
+            const int maximumBoundarySearch = 4096;
+            var searchEnd = Math.Min(_text.Length, targetRemoveCount + maximumBoundarySearch);
+            var lineBoundary = targetRemoveCount;
+            while (lineBoundary < searchEnd && _text[lineBoundary] != '\n')
             {
                 lineBoundary++;
             }
 
             int removeCount;
-            if (lineBoundary < _text.Length)
+            if (lineBoundary < searchEnd)
             {
                 removeCount = lineBoundary + 1;
             }
             else if (receiveAsHex)
             {
-                // A continuous HEX stream may not contain line breaks. Move the cut
-                // to the next byte separator so the visible text never starts mid-byte.
-                removeCount = minimumRemoveCount;
-                while (removeCount < _text.Length && !char.IsWhiteSpace(_text[removeCount]))
+                // A continuous HEX stream has separators but usually no line breaks.
+                removeCount = targetRemoveCount;
+                while (removeCount < searchEnd && !char.IsWhiteSpace(_text[removeCount]))
                 {
                     removeCount++;
                 }
 
-                while (removeCount < _text.Length && char.IsWhiteSpace(_text[removeCount]))
+                while (removeCount < searchEnd && char.IsWhiteSpace(_text[removeCount]))
                 {
                     removeCount++;
                 }
 
-                if (removeCount == _text.Length)
+                if (removeCount == searchEnd)
                 {
-                    removeCount = minimumRemoveCount;
+                    removeCount = targetRemoveCount;
                 }
             }
             else
             {
-                removeCount = minimumRemoveCount;
+                removeCount = targetRemoveCount;
+                if (removeCount < _text.Length &&
+                    removeCount > 0 &&
+                    char.IsLowSurrogate(_text[removeCount]) &&
+                    char.IsHighSurrogate(_text[removeCount - 1]))
+                {
+                    removeCount++;
+                }
             }
 
             _text.Remove(0, removeCount);
+            return true;
         }
     }
 }
