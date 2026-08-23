@@ -22,6 +22,16 @@ public sealed partial class MainPage
         UpdateCounters();
     }
 
+    private void ReceiveHexCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        _terminalRenderTimer.Stop();
+        _terminalRenderPending = false;
+        _terminalBuffer.SetReceiveAsHex(ReceiveHexCheckBox.IsChecked == true);
+        var preserveSelection = TerminalTextBox.SelectionLength > 0 || AutoScrollCheckBox.IsChecked != true;
+        SetTerminalText(_terminalBuffer.GetText(), preserveSelection);
+        EmptyTerminalPanel.Visibility = _terminalBuffer.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void TerminalTextBox_BeforeTextChanging(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
     {
         if (_isUpdatingTerminalText)
@@ -128,7 +138,7 @@ public sealed partial class MainPage
         }
     }
 
-    private void AppendEntry(string direction, string text, bool isHex = false)
+    private void AppendEntry(string direction, string text, bool isHex = false, byte[]? rawBytes = null)
     {
         var showDetails = TimestampCheckBox.IsChecked == true;
         var entry = new TerminalEntry
@@ -137,17 +147,18 @@ public sealed partial class MainPage
             Direction = direction,
             Text = text,
             IsDetailed = showDetails,
-            IsHex = isHex
+            IsHex = isHex,
+            RawBytes = rawBytes
         };
 
         var shouldDisplay = showDetails || direction == "RX";
-        if (!_terminalBuffer.Append(entry, shouldDisplay))
+        if (!_terminalBuffer.Append(entry, shouldDisplay, ReceiveHexCheckBox.IsChecked == true))
         {
             return;
         }
 
         ScheduleTerminalRender();
-        EmptyTerminalPanel.Visibility = Visibility.Collapsed;
+        EmptyTerminalPanel.Visibility = _terminalBuffer.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ScheduleTerminalRender()

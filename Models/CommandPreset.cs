@@ -12,5 +12,5 @@ public sealed class CommandPreset
 
     public string LineEnding { get; set; } = "无";
 
-    public string ModeLabel => IsHex ? "HEX" : LineEnding == "无" ? "TEXT" : $"TEXT · {LineEnding}";
+    public string ModeLabel => IsHex ? "HEX 发送" : LineEnding == "无" ? "TEXT" : $"TEXT · {LineEnding}";
 }

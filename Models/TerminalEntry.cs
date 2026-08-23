@@ -7,6 +7,7 @@ public sealed class TerminalEntry
     public required string Text { get; init; }
     public required bool IsDetailed { get; init; }
     public required bool IsHex { get; init; }
+    public byte[]? RawBytes { get; init; }
 
-    public string DetailedText => $"{Time}  {Direction,-3}  {Text}";
+    public string GetDetailedText(string displayText) => $"{Time}  {Direction,-3}  {displayText}";
 }

@@ -13,7 +13,6 @@ namespace Comet;
 
 public sealed partial class MainPage : Page
 {
-    private const int MaxTerminalEntries = 3000;
     private const int MaxTerminalCharacters = 1_000_000;
 
     private readonly SerialPortService _serialPort = new();
@@ -38,7 +37,7 @@ public sealed partial class MainPage : Page
         InitializeComponent();
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
-        _terminalBuffer = new TerminalBuffer(MaxTerminalEntries, MaxTerminalCharacters);
+        _terminalBuffer = new TerminalBuffer(MaxTerminalCharacters);
         _receiveQueue = new ConcurrentQueue<byte[]>();
 
         _repeatTimer = DispatcherQueue.CreateTimer();

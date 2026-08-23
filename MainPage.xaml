@@ -108,7 +108,8 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5">
-                            <CheckBox x:Name="ReceiveHexCheckBox" VerticalAlignment="Center" Content="HEX 显示" />
+                            <CheckBox x:Name="ReceiveHexCheckBox" VerticalAlignment="Center" Content="HEX 显示"
+                                      Click="ReceiveHexCheckBox_Click" />
                             <CheckBox x:Name="TimestampCheckBox" VerticalAlignment="Center" Content="时间戳" IsChecked="True" />
                             <CheckBox x:Name="AutoScrollCheckBox" VerticalAlignment="Center" Content="滚动"
                                       IsChecked="True" ToolTipService.ToolTip="自动滚动到最新数据" />
@@ -250,7 +251,7 @@
                                             <ColumnDefinition Width="88" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <CheckBox x:Name="NewPresetHexCheckBox" VerticalAlignment="Center" Content="HEX" />
+                                        <CheckBox x:Name="NewPresetHexCheckBox" VerticalAlignment="Center" Content="HEX 发送" />
                                         <ComboBox x:Name="NewPresetLineEndingComboBox" Grid.Column="1"
                                                   MinHeight="30" HorizontalAlignment="Stretch" SelectedIndex="0">
                                             <ComboBoxItem Content="无" />

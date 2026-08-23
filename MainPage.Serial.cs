@@ -210,11 +210,8 @@ public sealed partial class MainPage
         }
 
         _receivedBytes += data.Length;
-        var receiveAsHex = ReceiveHexCheckBox.IsChecked == true;
-        var text = receiveAsHex
-            ? HexCodec.Format(data)
-            : GetSelectedEncoding().GetString(data);
-        AppendEntry("RX", text, receiveAsHex);
+        var text = GetSelectedEncoding().GetString(data);
+        AppendEntry("RX", text, rawBytes: data);
         UpdateCounters();
     }
 
