@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="Comet.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Comet">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <SolidColorBrush x:Key="CometPageBrush" Color="#F3F6F9" />
+            <SolidColorBrush x:Key="CometSurfaceBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="CometSubtleBrush" Color="#F7F9FC" />
+            <SolidColorBrush x:Key="CometTerminalBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="CometTerminalBorderBrush" Color="#D8E1EA" />
+            <SolidColorBrush x:Key="CometMutedBrush" Color="#66768A" />
+            <SolidColorBrush x:Key="CometTerminalTextBrush" Color="#243447" />
+            <SolidColorBrush x:Key="CometPresetBadgeBrush" Color="#E9EFF5" />
+            <SolidColorBrush x:Key="CometReceiveBrush" Color="#16875D" />
+            <SolidColorBrush x:Key="CometSendBrush" Color="#176DB3" />
+            <SolidColorBrush x:Key="CometSystemBrush" Color="#A86600" />
+            <SolidColorBrush x:Key="TextControlBorderBrush" Color="#D8E1EA" />
+            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#D8E1EA" />
+            <Thickness x:Key="TextControlBorderThemeThicknessFocused">1</Thickness>
+            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#D8E1EA" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,84 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+publish/
+
+# Visual Studio user and workspace state
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.csproj.user
+*.vcxproj.user
+
+# Shared .pubxml files under Properties/PublishProfiles are source files.
+# Only machine-specific publish settings are ignored.
+*.pubxml.user
+PublishScripts/
+
+# NuGet generated packages and restore artifacts
+packages/
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+project.lock.json
+
+# WinUI / MSIX packaging output
+AppPackages/
+BundleArtifacts/
+*.appx
+*.appxbundle
+*.appxupload
+*.appinstaller
+*.msix
+*.msixbundle
+*.msixupload
+*.appxsym
+*.msixsym
+
+# Package-signing private keys and certificates
+*.pfx
+*.p12
+*.pvk
+*.key
+
+# Test, coverage and benchmark output
+[Tt]est[Rr]esult*/
+[Cc]overage[Rr]esult*/
+BenchmarkDotNet.Artifacts/
+*.trx
+*.coverage
+*.coveragexml
+
+# Build logs, crash dumps and temporary files
+[Ll]og/
+[Ll]ogs/
+*.log
+*.binlog
+*.dmp
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# IDE and analysis tools
+.idea/
+_ReSharper*/
+*.DotSettings.user
+*.dotCover
+*.code-workspace
+
+# Generated project files
+Generated Files/
+*_wpftmp.csproj
+
+# Windows and macOS metadata
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
