@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Assets/CometTerminalIcon.png" width="112" alt="Comet 应用图标">
+  <img src="src/Comet/Assets/CometTerminalIcon.png" width="112" alt="Comet 应用图标">
 </p>
 
 <h1 align="center">Comet</h1>
@@ -19,6 +19,7 @@ Comet 是基于 WinUI 3 与 .NET 10 开发的桌面串口调试工具。项目�
 - [快速使用](#快速使用)
 - [功能说明](#功能说明)
 - [架构与设计](#架构与设计)
+- [代码组织与命名](#代码组织与命名)
 - [数据与限制](#数据与限制)
 - [项目结构](#项目结构)
 - [开发文档](#开发文档)
@@ -181,7 +182,7 @@ SerialPort.DataReceived
   -> ConcurrentQueue<byte[]>
   -> DispatcherQueue 低优先级批处理
   -> StreamingTextDecoder
-  -> TerminalEntry
+  -> TerminalEntryModel
   -> TerminalBuffer 文本/HEX 双缓冲
   -> TextBox 头部删除 + 尾部追加
 ```
@@ -242,11 +243,28 @@ SerialPort.DataReceived
 | `TerminalBuffer` | 文本/HEX 格式、分段缓冲和容量淘汰 |
 | `HexCodec` | HEX 文本解析和字节格式化 |
 | `TextEscapeCodec` | 底部文本发送与文本预设的转义解析 |
-| `CommandPresetStore` | 快捷指令 JSON 读写 |
-| `MainPage.Serial` | 串口状态、接收队列、发送与计数 |
-| `MainPage.Terminal` | 内容区输入、日志、渲染、选择与滚动 |
-| `MainPage.Presets` | 快捷指令 UI 与持久化调用 |
+| `CommandPresetStorageService` | 快捷指令 JSON 读写 |
+| `Views/MainPage.SerialPort` | 串口状态、接收队列、发送与计数 |
+| `Views/MainPage.Terminal` | 内容区输入、日志、渲染、选择与滚动 |
+| `Views/MainPage.CommandPresets` | 快捷指令 UI 与持久化调用 |
 | `MainWindow` | 窗口尺寸、标题栏、图标和连接标题 |
+
+## 代码组织与命名
+
+工程参考 [Files 的源码组织](https://github.com/files-community/Files/tree/main/src/Files.App) 与 [编码规范](https://files.community/docs/contributing/code-style)，采用按职责分层、类型名表达角色的组织方式。Comet 仍保持适合小型 WinUI 应用的轻量结构，不为目录对称而引入没有实际状态职责的 ViewModel 或额外抽象。
+
+| 对象 | 约定 | 示例 |
+| --- | --- | --- |
+| 类型、属性、公开或私有方法 | PascalCase；名称说明职责或动作 | `SerialPortService`、`DrainReceiveQueue` |
+| 接口 | `I` + PascalCase | 后续接口应使用 `ISerialPortService` 形式 |
+| 私有字段 | `_camelCase` | `_serialPortService`、`_receiveQueue` |
+| 常量 | `UPPER_SNAKE_CASE` | `MAX_TERMINAL_CHARACTERS` |
+| 布尔值 | 优先使用 `Is`、`Has`、`Can`、`Should` | `shouldShowErrors` |
+| 模型 | 以 `Model` 结尾 | `CommandPresetModel` |
+| 服务 | 以 `Service` 结尾 | `CommandPresetStorageService` |
+| 异步方法 | 以 `Async` 结尾 | 后续异步 API 应遵循该规则 |
+
+文件夹与命名空间保持一致，例如 `Views` 对应 `Comet.Views`，`Core/Terminal` 对应 `Comet.Core.Terminal`。文件名与其中的主类型保持一致，一个文件原则上只定义一个顶层类型。同一页面的 XAML 和 partial 文件放在 `Views` 中，按 `MainPage.SerialPort.cs`、`MainPage.Terminal.cs`、`MainPage.CommandPresets.cs` 拆分职责；拆分只用于控制文件规模，不改变它们属于同一页面类的事实。
 
 ## 数据与限制
 
@@ -275,21 +293,22 @@ SerialPort.DataReceived
 
 ```text
 Comet/
-├─ Assets/                         图标与应用资源
-├─ Features/Terminal/              终端双视图与分段缓冲
-├─ Models/                         终端、预设和端口模型
-├─ Properties/PublishProfiles/     x86、x64、ARM64 发布配置
-├─ Services/                       串口与预设持久化服务
-├─ Utilities/                      编码、转义、HEX 和参数转换
 ├─ docs/
 │  ├─ ENVIRONMENT.md               环境安装、构建与发布
 │  └─ TESTING.md                   测试方法与验收标准
-├─ MainPage.xaml                   主界面布局
-├─ MainPage.Serial.cs              串口与发送接收流程
-├─ MainPage.Terminal.cs            内容区与日志流程
-├─ MainPage.Presets.cs             快捷指令流程
-├─ MainWindow.xaml                 主窗口与标题栏
-└─ Comet.csproj                    框架、依赖和发布属性
+├─ src/Comet/
+│  ├─ Assets/                      图标与应用资源
+│  ├─ Converters/                  UI 选项与领域值转换
+│  ├─ Core/Terminal/               终端双视图与分段缓冲
+│  ├─ Helpers/                     编码、转义与 HEX 辅助逻辑
+│  ├─ Models/                      终端、预设和端口模型
+│  ├─ Properties/PublishProfiles/  x86、x64、ARM64 发布配置
+│  ├─ Services/                    串口与预设持久化服务
+│  ├─ Views/                       窗口、页面与页面 partial 文件
+│  └─ Comet.csproj                 框架、依赖和发布属性
+├─ .editorconfig                   编辑格式与 C# 命名规则
+├─ .gitignore                      版本控制忽略规则
+└─ Comet.sln                       Visual Studio 解决方案
 ```
 
 ## 开发文档

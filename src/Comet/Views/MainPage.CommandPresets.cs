@@ -3,63 +3,63 @@ using Comet.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace Comet;
+namespace Comet.Views;
 
 public sealed partial class MainPage
 {
     private void InitializeCommandPresets()
     {
         PresetList.ItemsSource = _commandPresets;
-        foreach (var preset in CommandPresetStore.Load())
+        foreach (var preset in CommandPresetStorageService.LoadPresets())
         {
             _commandPresets.Add(preset);
         }
 
-        UpdatePresetUi();
-        PersistCommandPresets(showError: false);
+        UpdatePresetPanelState();
+        SaveCommandPresets(shouldShowError: false);
     }
 
     private void TogglePresetPanelButton_Click(object sender, RoutedEventArgs e)
     {
-        var showPanel = PresetPanel.Visibility != Visibility.Visible;
-        PresetPanel.Visibility = showPanel ? Visibility.Visible : Visibility.Collapsed;
-        ToolTipService.SetToolTip(PresetPanelToggleButton, showPanel ? "隐藏快捷指令" : "显示快捷指令");
+        var shouldShowPanel = PresetPanel.Visibility != Visibility.Visible;
+        PresetPanel.Visibility = shouldShowPanel ? Visibility.Visible : Visibility.Collapsed;
+        ToolTipService.SetToolTip(PresetPanelToggleButton, shouldShowPanel ? "隐藏快捷指令" : "显示快捷指令");
     }
 
     private void LoadPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        var preset = FindPreset(sender);
+        var preset = FindCommandPreset(sender);
         if (preset is null)
         {
             return;
         }
 
-        ApplyPreset(preset);
+        LoadPresetIntoSendComposer(preset);
         SendTextBox.Focus(FocusState.Programmatic);
     }
 
     private void SendPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        var preset = FindPreset(sender);
+        var preset = FindCommandPreset(sender);
         if (preset is null)
         {
             return;
         }
 
-        SendPayload(preset.Command, preset.IsHex, preset.LineEnding, showErrors: true);
+        SendPayload(preset.Command, preset.IsHex, preset.LineEnding, shouldShowErrors: true);
     }
 
     private void DeletePresetButton_Click(object sender, RoutedEventArgs e)
     {
-        var preset = FindPreset(sender);
+        var preset = FindCommandPreset(sender);
         if (preset is null)
         {
             return;
         }
 
         _commandPresets.Remove(preset);
-        UpdatePresetUi();
-        PersistCommandPresets(showError: true);
+        UpdatePresetPanelState();
+        SaveCommandPresets(shouldShowError: true);
     }
 
     private void AddPresetButton_Click(object sender, RoutedEventArgs e)
@@ -77,7 +77,7 @@ public sealed partial class MainPage
             : NewPresetNameTextBox.Text.Trim();
         var lineEnding = (NewPresetLineEndingComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "无";
 
-        _commandPresets.Add(new CommandPreset
+        _commandPresets.Add(new CommandPresetModel
         {
             Name = name,
             Command = command,
@@ -85,8 +85,8 @@ public sealed partial class MainPage
             LineEnding = lineEnding
         });
 
-        UpdatePresetUi();
-        PersistCommandPresets(showError: true);
+        UpdatePresetPanelState();
+        SaveCommandPresets(shouldShowError: true);
         PresetList.ScrollIntoView(_commandPresets[^1]);
         NewPresetNameTextBox.Text = string.Empty;
         NewPresetCommandTextBox.Text = string.Empty;
@@ -95,28 +95,28 @@ public sealed partial class MainPage
 
     private void PresetNameTextBox_LostFocus(object sender, RoutedEventArgs e)
     {
-        if (sender is not TextBox { DataContext: CommandPreset preset } textBox)
+        if (sender is not TextBox { DataContext: CommandPresetModel preset } textBox)
         {
             return;
         }
 
         preset.Name = string.IsNullOrWhiteSpace(textBox.Text) ? "未命名指令" : textBox.Text.Trim();
         textBox.Text = preset.Name;
-        PersistCommandPresets(showError: true);
+        SaveCommandPresets(shouldShowError: true);
     }
 
     private void PresetCommandTextBox_LostFocus(object sender, RoutedEventArgs e)
     {
-        if (sender is not TextBox { DataContext: CommandPreset preset } textBox)
+        if (sender is not TextBox { DataContext: CommandPresetModel preset } textBox)
         {
             return;
         }
 
         preset.Command = textBox.Text;
-        PersistCommandPresets(showError: true);
+        SaveCommandPresets(shouldShowError: true);
     }
 
-    private CommandPreset? FindPreset(object sender)
+    private CommandPresetModel? FindCommandPreset(object sender)
     {
         if (sender is not FrameworkElement { Tag: string id })
         {
@@ -126,28 +126,28 @@ public sealed partial class MainPage
         return _commandPresets.FirstOrDefault(preset => preset.Id == id);
     }
 
-    private void ApplyPreset(CommandPreset preset)
+    private void LoadPresetIntoSendComposer(CommandPresetModel preset)
     {
         SendTextBox.Text = preset.Command;
         SendHexCheckBox.IsChecked = preset.IsHex;
         LineEndingComboBox.SelectedItem = preset.LineEnding;
     }
 
-    private void UpdatePresetUi()
+    private void UpdatePresetPanelState()
     {
         PresetCountText.Text = $"{_commandPresets.Count} 条预设";
         EmptyPresetText.Visibility = _commandPresets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void PersistCommandPresets(bool showError)
+    private void SaveCommandPresets(bool shouldShowError)
     {
         try
         {
-            CommandPresetStore.Save(_commandPresets);
+            CommandPresetStorageService.SavePresets(_commandPresets);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            if (showError)
+            if (shouldShowError)
             {
                 ShowMessage("预设保存失败", exception.Message, InfoBarSeverity.Error);
             }

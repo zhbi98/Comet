@@ -1,42 +1,42 @@
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Text;
-using Comet.Features.Terminal;
+using Comet.Core.Terminal;
 using Comet.Models;
 using Comet.Services;
-using Comet.Utilities;
+using Comet.Helpers;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 
-namespace Comet;
+namespace Comet.Views;
 
 public sealed partial class MainPage : Page
 {
     // WinUI TextBox reflows the complete wrapped document after prefix edits.
     // A 100k rolling viewport keeps binary streams interactive while the RX
     // counter continues to track the complete session byte total.
-    private const int MaxTerminalCharacters = 100_000;
+    private const int MAX_TERMINAL_CHARACTERS = 100_000;
 
-    private readonly SerialPortService _serialPort = new();
+    private readonly SerialPortService _serialPortService = new();
     private readonly TerminalBuffer _terminalBuffer;
     private readonly StreamingTextDecoder _receiveTextDecoder = new();
     private readonly ConcurrentQueue<byte[]> _receiveQueue;
-    private readonly ObservableCollection<CommandPreset> _commandPresets = [];
-    private readonly DispatcherQueueTimer _repeatTimer;
+    private readonly ObservableCollection<CommandPresetModel> _commandPresets = [];
+    private readonly DispatcherQueueTimer _repeatSendTimer;
     private readonly DispatcherQueueTimer _terminalRenderTimer;
     private readonly SolidColorBrush _connectedBrush = new(Windows.UI.Color.FromArgb(255, 22, 135, 93));
     private readonly SolidColorBrush _disconnectedBrush = new(Windows.UI.Color.FromArgb(255, 102, 118, 138));
 
-    private long _receivedBytes;
-    private long _sentBytes;
-    private int _receiveDispatchScheduled;
-    private readonly StringBuilder _pendingTerminalAppend = new();
-    private int _pendingTerminalRemoveCount;
+    private long _totalReceivedBytes;
+    private long _totalSentBytes;
+    private int _receiveDrainScheduled;
+    private readonly StringBuilder _pendingTerminalText = new();
+    private int _pendingTerminalPrefixRemoval;
     private bool _isUpdatingTerminalText;
-    private bool _terminalRenderPending;
-    private bool _terminalScrollPending;
+    private bool _isTerminalRenderPending;
+    private bool _isTerminalScrollPending;
     private bool _isUnloaded;
 
     public MainPage()
@@ -44,12 +44,12 @@ public sealed partial class MainPage : Page
         InitializeComponent();
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
-        _terminalBuffer = new TerminalBuffer(MaxTerminalCharacters);
+        _terminalBuffer = new TerminalBuffer(MAX_TERMINAL_CHARACTERS);
         _receiveQueue = new ConcurrentQueue<byte[]>();
 
-        _repeatTimer = DispatcherQueue.CreateTimer();
-        _repeatTimer.Interval = TimeSpan.FromSeconds(1);
-        _repeatTimer.Tick += RepeatTimer_Tick;
+        _repeatSendTimer = DispatcherQueue.CreateTimer();
+        _repeatSendTimer.Interval = TimeSpan.FromSeconds(1);
+        _repeatSendTimer.Tick += RepeatTimer_Tick;
 
         _terminalRenderTimer = DispatcherQueue.CreateTimer();
         _terminalRenderTimer.Interval = TimeSpan.FromMilliseconds(50);
@@ -57,10 +57,10 @@ public sealed partial class MainPage : Page
         _terminalRenderTimer.Tick += TerminalRenderTimer_Tick;
 
         TerminalTextBox.BeforeTextChanging += TerminalTextBox_BeforeTextChanging;
-        _serialPort.BytesReceived += SerialPort_BytesReceived;
-        _serialPort.ErrorOccurred += SerialPort_ErrorOccurred;
+        _serialPortService.BytesReceived += SerialPort_BytesReceived;
+        _serialPortService.ErrorOccurred += SerialPort_ErrorOccurred;
 
-        InitializeOptions();
+        InitializeSerialOptions();
         InitializeCommandPresets();
     }
 
@@ -68,18 +68,18 @@ public sealed partial class MainPage : Page
     {
         _isUnloaded = false;
         RefreshPorts();
-        UpdateConnectionUi();
+        UpdateConnectionState();
     }
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
         _isUnloaded = true;
-        _repeatTimer.Stop();
+        _repeatSendTimer.Stop();
         _terminalRenderTimer.Stop();
-        _serialPort.Dispose();
+        _serialPortService.Dispose();
     }
 
-    private void InitializeOptions()
+    private void InitializeSerialOptions()
     {
         BaudRateComboBox.ItemsSource = new[] { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
         BaudRateComboBox.SelectedItem = 115200;
@@ -105,10 +105,10 @@ public sealed partial class MainPage : Page
         MessageBar.IsOpen = true;
     }
 
-    private System.Text.Encoding GetSelectedEncoding() =>
+    private System.Text.Encoding GetSelectedTextEncoding() =>
         TextEncodingCatalog.Get(EncodingComboBox.SelectedItem as string);
 
-    private static string GetLineEnding(string? lineEnding) => lineEnding switch
+    private static string ResolveLineEnding(string? lineEnding) => lineEnding switch
     {
         "CRLF" => "\r\n",
         "CR" => "\r",

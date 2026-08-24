@@ -14,7 +14,7 @@
 
 ## 项目基线
 
-以下值直接来自 `Comet.csproj` 和发布配置：
+以下值直接来自 `src/Comet/Comet.csproj` 和发布配置：
 
 | 项目 | 当前值 |
 | --- | --- |
@@ -74,7 +74,7 @@ dotnet --list-sdks
 确认输出中存在 `10.0.x` SDK，操作系统 RID 与目标架构匹配。然后在仓库根目录验证还原：
 
 ```powershell
-dotnet restore .\Comet.csproj
+dotnet restore .\src\Comet\Comet.csproj
 ```
 
 当前没有 `global.json`，因此默认使用机器上可用的最高兼容 .NET SDK。团队开发需要锁定 SDK 时，可另行添加 `global.json` 并统一版本。
@@ -86,21 +86,21 @@ dotnet restore .\Comet.csproj
 Debug x64：
 
 ```powershell
-dotnet build .\Comet.csproj -c Debug -p:Platform=x64
-dotnet run --project .\Comet.csproj -c Debug -p:Platform=x64
+dotnet build .\src\Comet\Comet.csproj -c Debug -p:Platform=x64
+dotnet run --project .\src\Comet\Comet.csproj -c Debug -p:Platform=x64
 ```
 
 Release x64：
 
 ```powershell
-dotnet build .\Comet.csproj -c Release -p:Platform=x64
+dotnet build .\src\Comet\Comet.csproj -c Release -p:Platform=x64
 ```
 
 典型输出目录：
 
 ```text
-bin\x64\Debug\net10.0-windows10.0.26100.0\win-x64\
-bin\x64\Release\net10.0-windows10.0.26100.0\win-x64\
+src\Comet\bin\x64\Debug\net10.0-windows10.0.26100.0\win-x64\
+src\Comet\bin\x64\Release\net10.0-windows10.0.26100.0\win-x64\
 ```
 
 ### Visual Studio
@@ -136,7 +136,7 @@ bin\x64\Release\net10.0-windows10.0.26100.0\win-x64\
 ### 生成 x64 便携目录
 
 ```powershell
-dotnet publish .\Comet.csproj `
+dotnet publish .\src\Comet\Comet.csproj `
   -c Release `
   -p:Platform=x64 `
   -r win-x64 `
@@ -180,8 +180,8 @@ Get-FileHash .\artifacts\Comet-win-x64-portable.zip -Algorithm SHA256
 普通清理优先使用：
 
 ```powershell
-dotnet clean .\Comet.csproj -c Debug -p:Platform=x64
-dotnet clean .\Comet.csproj -c Release -p:Platform=x64
+dotnet clean .\src\Comet\Comet.csproj -c Debug -p:Platform=x64
+dotnet clean .\src\Comet\Comet.csproj -c Release -p:Platform=x64
 ```
 
 `bin/`、`obj/`、`.vs/`、`artifacts/` 和发布输出均已由 `.gitignore` 排除，不应提交到仓库。
@@ -210,7 +210,7 @@ dotnet clean .\Comet.csproj -c Release -p:Platform=x64
 先检查 `%USERPROFILE%\.gitconfig` 和仓库 `.git\config` 是否为有效 UTF-8 Git 配置。排查期间可临时禁止 SourceLink 查询：
 
 ```powershell
-dotnet build .\Comet.csproj `
+dotnet build .\src\Comet\Comet.csproj `
   -c Release `
   -p:Platform=x64 `
   -p:EnableSourceControlManagerQueries=false

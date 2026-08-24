@@ -1,8 +1,8 @@
 using System.IO.Ports;
 
-namespace Comet.Utilities;
+namespace Comet.Converters;
 
-internal static class SerialPortOptions
+internal static class SerialPortSettingsConverter
 {
     public static Parity ParseParity(string? value) => value switch
     {

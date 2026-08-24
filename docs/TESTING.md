@@ -30,16 +30,16 @@
 ### 基础检查
 
 ```powershell
-dotnet restore .\Comet.csproj
-dotnet build .\Comet.csproj -c Release -p:Platform=x64
+dotnet restore .\src\Comet\Comet.csproj
+dotnet build .\src\Comet\Comet.csproj -c Release -p:Platform=x64
 git diff --check
 ```
 
 涉及项目配置、依赖或本机代码时，额外验证目标架构：
 
 ```powershell
-dotnet build .\Comet.csproj -c Release -p:Platform=x86
-dotnet build .\Comet.csproj -c Release -p:Platform=ARM64
+dotnet build .\src\Comet\Comet.csproj -c Release -p:Platform=x86
+dotnet build .\src\Comet\Comet.csproj -c Release -p:Platform=ARM64
 ```
 
 构建应无错误。警告需要确认来源；工程内损坏的 `obj` 或 NuGet 缓存应先清理并重新还原，不能把缓存警告当作源码结果。
@@ -48,12 +48,12 @@ dotnet build .\Comet.csproj -c Release -p:Platform=ARM64
 
 | 修改区域 | 最低附加验证 |
 | --- | --- |
-| `SerialPortService` | 枚举、连接、发送、接收、断开竞态 |
-| `TerminalBuffer` | 文本/HEX 切换、100,000 字符淘汰、选择保持、大数据测试 |
-| `StreamingTextDecoder` | UTF-8/GBK 跨批次字符、随机二进制、编码切换前重连 |
-| `TextEscapeCodec` | 全部转义、非法 `\x`/`\u`、未知转义 |
-| `HexCodec` | 分隔符、`0x`、奇数长度、非法字符 |
-| `MainPage.xaml` | Windows 10/11、窗口最小尺寸、图标、滚动条、输入焦点 |
+| `Services/SerialPortService.cs` | 枚举、连接、发送、接收、断开竞态 |
+| `Core/Terminal/TerminalBuffer.cs` | 文本/HEX 切换、100,000 字符淘汰、选择保持、大数据测试 |
+| `Helpers/StreamingTextDecoder.cs` | UTF-8/GBK 跨批次字符、随机二进制、编码切换前重连 |
+| `Helpers/TextEscapeCodec.cs` | 全部转义、非法 `\x`/`\u`、未知转义 |
+| `Helpers/HexCodec.cs` | 分隔符、`0x`、奇数长度、非法字符 |
+| `Views/MainPage.xaml` | Windows 10/11、窗口最小尺寸、图标、滚动条、输入焦点 |
 | 快捷指令 | 创建、载入、直接发送、编辑、删除、重启持久化 |
 | 发布配置 | 干净机器启动、架构匹配、完整目录验证 |
 

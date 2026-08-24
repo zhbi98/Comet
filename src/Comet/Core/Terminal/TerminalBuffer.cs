@@ -1,16 +1,8 @@
 using System.Text;
+using Comet.Helpers;
 using Comet.Models;
-using Comet.Utilities;
 
-namespace Comet.Features.Terminal;
-
-internal readonly record struct TerminalBufferUpdate(
-    bool HasChange,
-    int RemovedPrefixLength,
-    string AppendedText)
-{
-    public static TerminalBufferUpdate None => new(false, 0, string.Empty);
-}
+namespace Comet.Core.Terminal;
 
 /// <summary>
 /// Owns synchronized text and HEX segmented ring buffers for terminal content.
@@ -19,9 +11,9 @@ internal sealed class TerminalBuffer(int maxCharacters)
 {
     private readonly DisplayState _textDisplay = new(maxCharacters);
     private readonly DisplayState _hexDisplay = new(maxCharacters);
-    private bool _receiveAsHex;
+    private bool _isReceiveDisplayedAsHex;
 
-    private DisplayState CurrentDisplay => _receiveAsHex ? _hexDisplay : _textDisplay;
+    private DisplayState CurrentDisplay => _isReceiveDisplayedAsHex ? _hexDisplay : _textDisplay;
 
     public bool IsEmpty => CurrentDisplay.IsEmpty;
 
@@ -29,20 +21,20 @@ internal sealed class TerminalBuffer(int maxCharacters)
 
     public string GetText() => CurrentDisplay.GetText();
 
-    public TerminalBufferUpdate Append(TerminalEntry entry, bool includeInDisplay, bool receiveAsHex)
+    public TerminalBufferUpdate Append(TerminalEntryModel entry, bool shouldIncludeInDisplay, bool isReceiveDisplayedAsHex)
     {
-        _receiveAsHex = receiveAsHex;
-        if (!includeInDisplay)
+        _isReceiveDisplayedAsHex = isReceiveDisplayedAsHex;
+        if (!shouldIncludeInDisplay)
         {
             return TerminalBufferUpdate.None;
         }
 
-        var textUpdate = _textDisplay.Append(entry, receiveAsHex: false);
-        var hexUpdate = _hexDisplay.Append(entry, receiveAsHex: true);
-        return receiveAsHex ? hexUpdate : textUpdate;
+        var textUpdate = _textDisplay.Append(entry, isReceiveDisplayedAsHex: false);
+        var hexUpdate = _hexDisplay.Append(entry, isReceiveDisplayedAsHex: true);
+        return isReceiveDisplayedAsHex ? hexUpdate : textUpdate;
     }
 
-    public void SetReceiveAsHex(bool receiveAsHex) => _receiveAsHex = receiveAsHex;
+    public void SetReceiveAsHex(bool isReceiveDisplayedAsHex) => _isReceiveDisplayedAsHex = isReceiveDisplayedAsHex;
 
     public void Clear()
     {
@@ -65,11 +57,11 @@ internal sealed class TerminalBuffer(int maxCharacters)
 
         public string GetText() => _text.GetText();
 
-        public TerminalBufferUpdate Append(TerminalEntry entry, bool receiveAsHex)
+        public TerminalBufferUpdate Append(TerminalEntryModel entry, bool isReceiveDisplayedAsHex)
         {
             var appended = new StringBuilder();
-            var displayText = GetDisplayText(entry, receiveAsHex);
-            var isDisplayedAsHex = IsDisplayedAsHex(entry, receiveAsHex);
+            var displayText = GetDisplayText(entry, isReceiveDisplayedAsHex);
+            var isDisplayedAsHex = IsDisplayedAsHex(entry, isReceiveDisplayedAsHex);
 
             if (_hasDisplayedEntry && _lastEntryWasHex != isDisplayedAsHex)
             {
@@ -108,7 +100,7 @@ internal sealed class TerminalBuffer(int maxCharacters)
             _lastDetailedDirection = entry.IsDetailed ? entry.Direction : null;
             var appendedText = appended.ToString();
             _text.Append(appendedText);
-            var removedPrefixLength = TrimToCapacity(receiveAsHex);
+            var removedPrefixLength = TrimToCapacity(isReceiveDisplayedAsHex);
 
             return new TerminalBufferUpdate(
                 true,
@@ -126,11 +118,11 @@ internal sealed class TerminalBuffer(int maxCharacters)
             _previousRxTextEndedWithCarriageReturn = false;
         }
 
-        private string GetDisplayText(TerminalEntry entry, bool receiveAsHex)
+        private string GetDisplayText(TerminalEntryModel entry, bool isReceiveDisplayedAsHex)
         {
             if (entry.Direction == "RX" && entry.RawBytes is not null)
             {
-                return receiveAsHex
+                return isReceiveDisplayedAsHex
                     ? HexCodec.Format(entry.RawBytes)
                     : NormalizeTextBoxText(entry.Text, ref _previousRxTextEndedWithCarriageReturn);
             }
@@ -200,9 +192,9 @@ internal sealed class TerminalBuffer(int maxCharacters)
             return normalized.ToString();
         }
 
-        private static bool IsDisplayedAsHex(TerminalEntry entry, bool receiveAsHex) =>
+        private static bool IsDisplayedAsHex(TerminalEntryModel entry, bool isReceiveDisplayedAsHex) =>
             entry.Direction == "RX" && entry.RawBytes is not null
-                ? receiveAsHex
+                ? isReceiveDisplayedAsHex
                 : entry.IsHex;
 
         private void AppendHexSeparatorIfNeeded(StringBuilder appended, string displayText, bool isDisplayedAsHex)
@@ -234,7 +226,7 @@ internal sealed class TerminalBuffer(int maxCharacters)
             }
         }
 
-        private int TrimToCapacity(bool receiveAsHex)
+        private int TrimToCapacity(bool isReceiveDisplayedAsHex)
         {
             if (_text.Length <= maxCharacters)
             {
@@ -246,7 +238,7 @@ internal sealed class TerminalBuffer(int maxCharacters)
             // reset, which looked like data loss and reset the scroll layout.
             var removeCount = _text.Length - maxCharacters;
             var lastRemovedCharacter = _text.RemovePrefix(removeCount);
-            if (receiveAsHex)
+            if (isReceiveDisplayedAsHex)
             {
                 // Move by at most one byte token so HEX never starts halfway
                 // through a two-digit value.

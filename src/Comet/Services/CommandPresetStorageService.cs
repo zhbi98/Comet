@@ -3,7 +3,7 @@ using Comet.Models;
 
 namespace Comet.Services;
 
-public static class CommandPresetStore
+public static class CommandPresetStorageService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -16,7 +16,7 @@ public static class CommandPresetStore
 
     private static readonly string StorePath = Path.Combine(StoreDirectory, "presets.json");
 
-    public static IReadOnlyList<CommandPreset> Load()
+    public static IReadOnlyList<CommandPresetModel> LoadPresets()
     {
         try
         {
@@ -26,7 +26,7 @@ public static class CommandPresetStore
             }
 
             var json = File.ReadAllText(StorePath);
-            var presets = JsonSerializer.Deserialize<List<CommandPreset>>(json, JsonOptions);
+            var presets = JsonSerializer.Deserialize<List<CommandPresetModel>>(json, JsonOptions);
             return presets ?? [];
         }
         catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
@@ -35,7 +35,7 @@ public static class CommandPresetStore
         }
     }
 
-    public static void Save(IEnumerable<CommandPreset> presets)
+    public static void SavePresets(IEnumerable<CommandPresetModel> presets)
     {
         Directory.CreateDirectory(StoreDirectory);
         var json = JsonSerializer.Serialize(presets, JsonOptions);

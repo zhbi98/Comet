@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Comet.Utilities;
+namespace Comet.Helpers;
 
 internal static class TextEncodingCatalog
 {

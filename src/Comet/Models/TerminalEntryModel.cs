@@ -1,6 +1,6 @@
 namespace Comet.Models;
 
-public sealed class TerminalEntry
+public sealed class TerminalEntryModel
 {
     public required string Time { get; init; }
     public required string Direction { get; init; }

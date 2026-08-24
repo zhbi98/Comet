@@ -6,26 +6,11 @@ using Comet.Models;
 
 namespace Comet.Services;
 
-public sealed record SerialPortSettings(
-    string PortName,
-    int BaudRate,
-    int DataBits,
-    Parity Parity,
-    StopBits StopBits,
-    Handshake Handshake,
-    bool DtrEnable,
-    bool RtsEnable);
-
-public sealed class SerialBytesReceivedEventArgs(byte[] data) : EventArgs
-{
-    public byte[] Data { get; } = data;
-}
-
 public sealed class SerialPortService : IDisposable
 {
-    private const uint DigcfPresent = 0x00000002;
-    private const uint SpdrpDeviceDescription = 0x00000000;
-    private const uint SpdrpFriendlyName = 0x0000000C;
+    private const uint DIGCF_PRESENT = 0x00000002;
+    private const uint SPDRP_DEVICE_DESCRIPTION = 0x00000000;
+    private const uint SPDRP_FRIENDLY_NAME = 0x0000000C;
     private static readonly Guid PortsDeviceSetupClass = new("4D36E978-E325-11CE-BFC1-08002BE10318");
     private static readonly Regex PortNameSuffixPattern = new(
         @"\((COM\d+)\)\s*$",
@@ -69,12 +54,12 @@ public sealed class SerialPortService : IDisposable
         }
     }
 
-    public static IReadOnlyList<SerialPortInfo> GetAvailablePorts()
+    public static IReadOnlyList<SerialPortInfoModel> GetAvailablePorts()
     {
         var friendlyNames = GetPresentPortFriendlyNames();
         return SerialPort.GetPortNames()
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(portName => new SerialPortInfo(
+            .Select(portName => new SerialPortInfoModel(
                 portName,
                 friendlyNames.GetValueOrDefault(portName)))
             .OrderBy(port => GetPortNumber(port.PortName))
@@ -90,7 +75,7 @@ public sealed class SerialPortService : IDisposable
             ref classGuid,
             null,
             IntPtr.Zero,
-            DigcfPresent);
+            DIGCF_PRESENT);
         if (deviceInfoSet == new IntPtr(-1))
         {
             return names;
@@ -112,11 +97,11 @@ public sealed class SerialPortService : IDisposable
                 var fullName = GetDeviceRegistryProperty(
                                    deviceInfoSet,
                                    ref deviceInfo,
-                                   SpdrpFriendlyName) ??
+                                   SPDRP_FRIENDLY_NAME) ??
                                GetDeviceRegistryProperty(
                                    deviceInfoSet,
                                    ref deviceInfo,
-                                   SpdrpDeviceDescription);
+                                   SPDRP_DEVICE_DESCRIPTION);
                 if (string.IsNullOrWhiteSpace(fullName))
                 {
                     continue;
@@ -191,7 +176,7 @@ public sealed class SerialPortService : IDisposable
         return Encoding.Unicode.GetString(buffer, 0, textLength).TrimEnd('\0').Trim();
     }
 
-    public void Open(SerialPortSettings settings)
+    public void Open(SerialPortConnectionOptions options)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -200,14 +185,14 @@ public sealed class SerialPortService : IDisposable
             CloseCore();
             var port = new SerialPort
             {
-                PortName = settings.PortName,
-                BaudRate = settings.BaudRate,
-                DataBits = settings.DataBits,
-                Parity = settings.Parity,
-                StopBits = settings.StopBits,
-                Handshake = settings.Handshake,
-                DtrEnable = settings.DtrEnable,
-                RtsEnable = settings.RtsEnable,
+                PortName = options.PortName,
+                BaudRate = options.BaudRate,
+                DataBits = options.DataBits,
+                Parity = options.Parity,
+                StopBits = options.StopBits,
+                Handshake = options.Handshake,
+                DtrEnable = options.IsDtrEnabled,
+                RtsEnable = options.IsRtsEnabled,
                 ReadTimeout = 500,
                 WriteTimeout = 1000,
                 ReadBufferSize = 16 * 1024,

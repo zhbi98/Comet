@@ -1,6 +1,6 @@
 namespace Comet.Models;
 
-public sealed record SerialPortInfo(string PortName, string? FriendlyName)
+public sealed record SerialPortInfoModel(string PortName, string? FriendlyName)
 {
     public string DisplayName => string.IsNullOrWhiteSpace(FriendlyName)
         ? PortName

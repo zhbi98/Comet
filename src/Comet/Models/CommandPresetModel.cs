@@ -1,6 +1,6 @@
 namespace Comet.Models;
 
-public sealed class CommandPreset
+public sealed class CommandPresetModel
 {
     public string Id { get; init; } = Guid.NewGuid().ToString("N");
 

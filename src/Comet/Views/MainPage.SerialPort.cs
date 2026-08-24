@@ -1,12 +1,13 @@
 using System.Diagnostics;
+using Comet.Converters;
+using Comet.Helpers;
 using Comet.Models;
 using Comet.Services;
-using Comet.Utilities;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace Comet;
+namespace Comet.Views;
 
 public sealed partial class MainPage
 {
@@ -14,7 +15,7 @@ public sealed partial class MainPage
 
     private void RefreshPorts()
     {
-        var previousPortName = (PortComboBox.SelectedItem as SerialPortInfo)?.PortName;
+        var previousPortName = (PortComboBox.SelectedItem as SerialPortInfoModel)?.PortName;
         var ports = SerialPortService.GetAvailablePorts();
         PortComboBox.ItemsSource = ports;
 
@@ -36,13 +37,13 @@ public sealed partial class MainPage
 
     private void OpenCloseButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_serialPort.IsOpen)
+        if (_serialPortService.IsOpen)
         {
-            Disconnect();
+            DisconnectSerialPort();
             return;
         }
 
-        if (PortComboBox.SelectedItem is not SerialPortInfo selectedPort)
+        if (PortComboBox.SelectedItem is not SerialPortInfoModel selectedPort)
         {
             ShowMessage("没有可用串口", "请连接设备并刷新串口列表。", InfoBarSeverity.Warning);
             return;
@@ -51,55 +52,55 @@ public sealed partial class MainPage
         try
         {
             var portName = selectedPort.PortName;
-            var settings = new SerialPortSettings(
+            var connectionOptions = new SerialPortConnectionOptions(
                 portName,
                 (int)(BaudRateComboBox.SelectedItem ?? 115200),
                 (int)(DataBitsComboBox.SelectedItem ?? 8),
-                SerialPortOptions.ParseParity(ParityComboBox.SelectedItem as string),
-                SerialPortOptions.ParseStopBits(StopBitsComboBox.SelectedItem as string),
-                SerialPortOptions.ParseHandshake(HandshakeComboBox.SelectedItem as string),
+                SerialPortSettingsConverter.ParseParity(ParityComboBox.SelectedItem as string),
+                SerialPortSettingsConverter.ParseStopBits(StopBitsComboBox.SelectedItem as string),
+                SerialPortSettingsConverter.ParseHandshake(HandshakeComboBox.SelectedItem as string),
                 DtrToggle.IsOn,
                 RtsToggle.IsOn);
 
-            _serialPort.Open(settings);
+            _serialPortService.Open(connectionOptions);
             _receiveTextDecoder.Reset();
-            var parity = SerialPortOptions.GetParityShortName(settings.Parity);
-            var stopBits = SerialPortOptions.GetStopBitsShortName(settings.StopBits);
-            AppendEntry("SYS", $"已连接 {portName}  ·  {settings.BaudRate} / {settings.DataBits}{parity}{stopBits}");
-            UpdateConnectionUi();
+            var parity = SerialPortSettingsConverter.GetParityShortName(connectionOptions.Parity);
+            var stopBits = SerialPortSettingsConverter.GetStopBitsShortName(connectionOptions.StopBits);
+            AppendTerminalEntry("SYS", $"已连接 {portName}  ·  {connectionOptions.BaudRate} / {connectionOptions.DataBits}{parity}{stopBits}");
+            UpdateConnectionState();
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
         {
             ShowMessage("连接失败", exception.Message, InfoBarSeverity.Error);
-            UpdateConnectionUi();
+            UpdateConnectionState();
         }
     }
 
-    private void Disconnect()
+    private void DisconnectSerialPort()
     {
-        var portName = _serialPort.PortName ?? "串口";
-        _repeatTimer.Stop();
+        var portName = _serialPortService.PortName ?? "串口";
+        _repeatSendTimer.Stop();
         RepeatSendToggle.IsOn = false;
-        _serialPort.Close();
+        _serialPortService.Close();
         _receiveTextDecoder.Reset();
-        AppendEntry("SYS", $"{portName} 已断开");
-        UpdateConnectionUi();
+        AppendTerminalEntry("SYS", $"{portName} 已断开");
+        UpdateConnectionState();
         RefreshPorts();
     }
 
-    private void SendButton_Click(object sender, RoutedEventArgs e) => SendCurrentPayload(showErrors: true);
+    private void SendButton_Click(object sender, RoutedEventArgs e) => SendComposerPayload(shouldShowErrors: true);
 
-    private bool SendCurrentPayload(bool showErrors) => SendPayload(
+    private bool SendComposerPayload(bool shouldShowErrors) => SendPayload(
         SendTextBox.Text,
         SendHexCheckBox.IsChecked == true,
         LineEndingComboBox.SelectedItem as string,
-        showErrors);
+        shouldShowErrors);
 
-    private bool SendPayload(string content, bool isHex, string? lineEnding, bool showErrors)
+    private bool SendPayload(string content, bool isHex, string? lineEnding, bool shouldShowErrors)
     {
-        if (!_serialPort.IsOpen)
+        if (!_serialPortService.IsOpen)
         {
-            if (showErrors)
+            if (shouldShowErrors)
             {
                 ShowMessage("无法发送", "请先连接串口。", InfoBarSeverity.Warning);
             }
@@ -113,7 +114,7 @@ public sealed partial class MainPage
         {
             if (!HexCodec.TryParse(content, out payload, out var error))
             {
-                if (showErrors)
+                if (shouldShowErrors)
                 {
                     ShowMessage("HEX 格式错误", error, InfoBarSeverity.Warning);
                 }
@@ -127,7 +128,7 @@ public sealed partial class MainPage
         {
             if (!TextEscapeCodec.TryDecode(content, out var decodedText, out var escapeError))
             {
-                if (showErrors)
+                if (shouldShowErrors)
                 {
                     ShowMessage("转义格式错误", escapeError, InfoBarSeverity.Warning);
                 }
@@ -135,10 +136,10 @@ public sealed partial class MainPage
                 return false;
             }
 
-            var text = decodedText + GetLineEnding(lineEnding);
+            var text = decodedText + ResolveLineEnding(lineEnding);
             if (text.Length == 0)
             {
-                if (showErrors)
+                if (shouldShowErrors)
                 {
                     ShowMessage("没有发送内容", "请输入文本或选择一个行尾符。", InfoBarSeverity.Warning);
                 }
@@ -146,21 +147,21 @@ public sealed partial class MainPage
                 return false;
             }
 
-            payload = GetSelectedEncoding().GetBytes(text);
+            payload = GetSelectedTextEncoding().GetBytes(text);
             displayText = text;
         }
 
         try
         {
-            _serialPort.Send(payload);
-            _sentBytes += payload.Length;
-            AppendEntry("TX", displayText, isHex);
-            UpdateCounters();
+            _serialPortService.Send(payload);
+            _totalSentBytes += payload.Length;
+            AppendTerminalEntry("TX", displayText, isHex);
+            UpdateTransferCounters();
             return true;
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or TimeoutException)
         {
-            if (showErrors)
+            if (shouldShowErrors)
             {
                 ShowMessage("发送失败", exception.Message, InfoBarSeverity.Error);
             }
@@ -172,23 +173,23 @@ public sealed partial class MainPage
     private void SerialPort_BytesReceived(object? sender, SerialBytesReceivedEventArgs e)
     {
         _receiveQueue.Enqueue(e.Data);
-        ScheduleReceiveDrain();
+        ScheduleReceiveQueueDrain();
     }
 
-    private void ScheduleReceiveDrain()
+    private void ScheduleReceiveQueueDrain()
     {
-        if (Interlocked.Exchange(ref _receiveDispatchScheduled, 1) != 0)
+        if (Interlocked.Exchange(ref _receiveDrainScheduled, 1) != 0)
         {
             return;
         }
 
-        if (!DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, DrainReceivedData))
+        if (!DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, DrainReceiveQueue))
         {
-            Interlocked.Exchange(ref _receiveDispatchScheduled, 0);
+            Interlocked.Exchange(ref _receiveDrainScheduled, 0);
         }
     }
 
-    private void DrainReceivedData()
+    private void DrainReceiveQueue()
     {
         if (_isUnloaded)
         {
@@ -196,7 +197,7 @@ public sealed partial class MainPage
             {
             }
 
-            Interlocked.Exchange(ref _receiveDispatchScheduled, 0);
+            Interlocked.Exchange(ref _receiveDrainScheduled, 0);
             return;
         }
 
@@ -225,23 +226,23 @@ public sealed partial class MainPage
                 offset += chunk.Length;
             }
 
-            _receivedBytes += data.Length;
-            var text = _receiveTextDecoder.Decode(data, GetSelectedEncoding());
-            AppendEntry("RX", text, rawBytes: data);
+            _totalReceivedBytes += data.Length;
+            var text = _receiveTextDecoder.Decode(data, GetSelectedTextEncoding());
+            AppendTerminalEntry("RX", text, rawBytes: data);
         }
 
         if (!_receiveQueue.IsEmpty &&
-            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, DrainReceivedData))
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, DrainReceiveQueue))
         {
             return;
         }
 
         // Close the enqueue race: data may arrive after the empty check but before
         // the scheduled flag is released.
-        Interlocked.Exchange(ref _receiveDispatchScheduled, 0);
+        Interlocked.Exchange(ref _receiveDrainScheduled, 0);
         if (!_receiveQueue.IsEmpty)
         {
-            ScheduleReceiveDrain();
+            ScheduleReceiveQueueDrain();
         }
     }
 
@@ -258,45 +259,45 @@ public sealed partial class MainPage
 
     private void RepeatSendToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        if (_repeatTimer is null)
+        if (_repeatSendTimer is null)
         {
             return;
         }
 
         if (!RepeatSendToggle.IsOn)
         {
-            _repeatTimer.Stop();
+            _repeatSendTimer.Stop();
             return;
         }
 
-        if (!_serialPort.IsOpen)
+        if (!_serialPortService.IsOpen)
         {
             RepeatSendToggle.IsOn = false;
             ShowMessage("无法循环发送", "请先连接串口。", InfoBarSeverity.Warning);
             return;
         }
 
-        UpdateRepeatInterval();
-        _repeatTimer.Start();
+        UpdateRepeatSendInterval();
+        _repeatSendTimer.Start();
     }
 
     private void RepeatIntervalNumberBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) =>
-        UpdateRepeatInterval();
+        UpdateRepeatSendInterval();
 
-    private void UpdateRepeatInterval()
+    private void UpdateRepeatSendInterval()
     {
-        if (_repeatTimer is null)
+        if (_repeatSendTimer is null)
         {
             return;
         }
 
         var value = double.IsNaN(RepeatIntervalNumberBox.Value) ? 1000 : RepeatIntervalNumberBox.Value;
-        _repeatTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(value, 20, 60_000));
+        _repeatSendTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(value, 20, 60_000));
     }
 
     private void RepeatTimer_Tick(DispatcherQueueTimer sender, object args)
     {
-        if (SendCurrentPayload(showErrors: false))
+        if (SendComposerPayload(shouldShowErrors: false))
         {
             return;
         }
@@ -305,9 +306,9 @@ public sealed partial class MainPage
         ShowMessage("循环发送已停止", "请检查连接状态或发送内容。", InfoBarSeverity.Warning);
     }
 
-    private void UpdateConnectionUi()
+    private void UpdateConnectionState()
     {
-        var isOpen = _serialPort.IsOpen;
+        var isOpen = _serialPortService.IsOpen;
         SettingsPanel.IsHitTestVisible = !isOpen;
         SettingsPanel.Opacity = isOpen ? 0.55 : 1;
         SendButton.IsEnabled = isOpen;
@@ -315,10 +316,10 @@ public sealed partial class MainPage
         ToolTipService.SetToolTip(
             TerminalTextBox,
             isOpen ? "键入内容将同步发送到串口；内容仅显示设备 RX 回传。" : "连接串口后可在内容区键入发送；当前仍可选择和复制内容。");
-        FooterConnectionText.Text = isOpen ? $"{_serialPort.PortName} · 通信中" : "未连接";
+        FooterConnectionText.Text = isOpen ? $"{_serialPortService.PortName} · 通信中" : "未连接";
         if (App.CurrentWindow is MainWindow window)
         {
-            window.SetConnectionStatus(isOpen ? _serialPort.PortName : null);
+            window.SetConnectionStatus(isOpen ? _serialPortService.PortName : null);
         }
 
         ConnectionDot.Fill = isOpen ? _connectedBrush : _disconnectedBrush;
@@ -330,9 +331,9 @@ public sealed partial class MainPage
         }
     }
 
-    private void UpdateCounters()
+    private void UpdateTransferCounters()
     {
-        ReceiveCountText.Text = $"RX  {FormatByteCount(_receivedBytes)}";
-        SendCountText.Text = $"TX  {FormatByteCount(_sentBytes)}";
+        ReceiveCountText.Text = $"RX  {FormatByteCount(_totalReceivedBytes)}";
+        SendCountText.Text = $"TX  {FormatByteCount(_totalSentBytes)}";
     }
 }
