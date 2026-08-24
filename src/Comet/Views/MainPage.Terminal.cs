@@ -144,12 +144,17 @@ public sealed partial class MainPage
         }
     }
 
-    private void AppendTerminalEntry(string direction, string text, bool isHex = false, byte[]? rawBytes = null)
+    private void AppendTerminalEntry(
+        string direction,
+        string text,
+        bool isHex = false,
+        byte[]? rawBytes = null,
+        DateTime? timestamp = null)
     {
         var shouldShowDetails = TimestampCheckBox.IsChecked == true;
         var entry = new TerminalEntryModel
         {
-            Time = DateTime.Now.ToString("HH:mm:ss.fff"),
+            Time = (timestamp ?? DateTime.Now).ToString("HH:mm:ss.fff"),
             Direction = direction,
             Text = text,
             IsDetailed = shouldShowDetails,

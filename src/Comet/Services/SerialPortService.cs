@@ -263,7 +263,7 @@ public sealed class SerialPortService : IDisposable
                 Array.Resize(ref buffer, read);
             }
 
-            BytesReceived?.Invoke(this, new SerialBytesReceivedEventArgs(buffer));
+            BytesReceived?.Invoke(this, new SerialBytesReceivedEventArgs(buffer, DateTime.Now));
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
         {

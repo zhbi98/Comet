@@ -22,9 +22,9 @@ public sealed partial class MainPage : Page
     private readonly SerialPortService _serialPortService = new();
     private readonly TerminalBuffer _terminalBuffer;
     private readonly StreamingTextDecoder _receiveTextDecoder = new();
-    private readonly ConcurrentQueue<byte[]> _receiveQueue;
+    private readonly ConcurrentQueue<SerialBytesReceivedEventArgs> _receiveQueue;
     private readonly ObservableCollection<CommandPresetModel> _commandPresets = [];
-    private readonly DispatcherQueueTimer _repeatSendTimer;
+    private readonly HighResolutionPeriodicTimer _repeatSendTimer;
     private readonly DispatcherQueueTimer _terminalRenderTimer;
     private readonly SolidColorBrush _connectedBrush = new(Windows.UI.Color.FromArgb(255, 22, 135, 93));
     private readonly SolidColorBrush _disconnectedBrush = new(Windows.UI.Color.FromArgb(255, 102, 118, 138));
@@ -38,6 +38,11 @@ public sealed partial class MainPage : Page
     private bool _isTerminalRenderPending;
     private bool _isTerminalScrollPending;
     private bool _isUnloaded;
+    private PreparedSerialPayload? _repeatSendPayload;
+    private int _repeatSendEnabled;
+    private int _repeatSendInProgress;
+    private int _repeatSendFailureQueued;
+    private int _shutdownState;
 
     public MainPage()
     {
@@ -45,11 +50,12 @@ public sealed partial class MainPage : Page
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
         _terminalBuffer = new TerminalBuffer(MAX_TERMINAL_CHARACTERS);
-        _receiveQueue = new ConcurrentQueue<byte[]>();
+        _receiveQueue = new ConcurrentQueue<SerialBytesReceivedEventArgs>();
 
-        _repeatSendTimer = DispatcherQueue.CreateTimer();
-        _repeatSendTimer.Interval = TimeSpan.FromSeconds(1);
-        _repeatSendTimer.Tick += RepeatTimer_Tick;
+        _repeatSendTimer = new HighResolutionPeriodicTimer(RepeatTimer_Tick);
+        SendTextBox.TextChanged += (_, _) => UpdateRepeatSendPayload();
+        SendHexCheckBox.Click += (_, _) => UpdateRepeatSendPayload();
+        LineEndingComboBox.SelectionChanged += (_, _) => UpdateRepeatSendPayload();
 
         _terminalRenderTimer = DispatcherQueue.CreateTimer();
         _terminalRenderTimer.Interval = TimeSpan.FromMilliseconds(50);
@@ -73,10 +79,33 @@ public sealed partial class MainPage : Page
 
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
+        Shutdown();
+    }
+
+    internal void Shutdown()
+    {
+        if (Interlocked.Exchange(ref _shutdownState, 1) != 0)
+        {
+            return;
+        }
+
         _isUnloaded = true;
-        _repeatSendTimer.Stop();
+        StopRepeatSending();
+        _repeatSendTimer.Dispose();
         _terminalRenderTimer.Stop();
-        _serialPortService.Dispose();
+        try
+        {
+            _serialPortService.Close();
+        }
+        catch (Exception exception) when (
+            exception is UnauthorizedAccessException or IOException or InvalidOperationException)
+        {
+            // Closing the window must continue even if the device disappeared.
+        }
+        finally
+        {
+            _serialPortService.Dispose();
+        }
     }
 
     private void InitializeSerialOptions()

@@ -11,6 +11,8 @@ namespace Comet.Views;
 
 public sealed partial class MainPage
 {
+    private sealed record PreparedSerialPayload(byte[] Bytes, string DisplayText, bool IsHex);
+
     private void RefreshPortsButton_Click(object sender, RoutedEventArgs e) => RefreshPorts();
 
     private void RefreshPorts()
@@ -79,7 +81,7 @@ public sealed partial class MainPage
     private void DisconnectSerialPort()
     {
         var portName = _serialPortService.PortName ?? "串口";
-        _repeatSendTimer.Stop();
+        StopRepeatSending();
         RepeatSendToggle.IsOn = false;
         _serialPortService.Close();
         _receiveTextDecoder.Reset();
@@ -108,54 +110,17 @@ public sealed partial class MainPage
             return false;
         }
 
-        byte[] payload;
-        string displayText;
-        if (isHex)
+        if (!TryPreparePayload(content, isHex, lineEnding, shouldShowErrors, out var payload))
         {
-            if (!HexCodec.TryParse(content, out payload, out var error))
-            {
-                if (shouldShowErrors)
-                {
-                    ShowMessage("HEX 格式错误", error, InfoBarSeverity.Warning);
-                }
-
-                return false;
-            }
-
-            displayText = HexCodec.Format(payload);
-        }
-        else
-        {
-            if (!TextEscapeCodec.TryDecode(content, out var decodedText, out var escapeError))
-            {
-                if (shouldShowErrors)
-                {
-                    ShowMessage("转义格式错误", escapeError, InfoBarSeverity.Warning);
-                }
-
-                return false;
-            }
-
-            var text = decodedText + ResolveLineEnding(lineEnding);
-            if (text.Length == 0)
-            {
-                if (shouldShowErrors)
-                {
-                    ShowMessage("没有发送内容", "请输入文本或选择一个行尾符。", InfoBarSeverity.Warning);
-                }
-
-                return false;
-            }
-
-            payload = GetSelectedTextEncoding().GetBytes(text);
-            displayText = text;
+            return false;
         }
 
         try
         {
-            _serialPortService.Send(payload);
-            _totalSentBytes += payload.Length;
-            AppendTerminalEntry("TX", displayText, isHex);
+            var sentAt = DateTime.Now;
+            _serialPortService.Send(payload.Bytes);
+            _totalSentBytes += payload.Bytes.Length;
+            AppendTerminalEntry("TX", payload.DisplayText, payload.IsHex, timestamp: sentAt);
             UpdateTransferCounters();
             return true;
         }
@@ -170,9 +135,66 @@ public sealed partial class MainPage
         }
     }
 
+    private bool TryPreparePayload(
+        string content,
+        bool isHex,
+        string? lineEnding,
+        bool shouldShowErrors,
+        out PreparedSerialPayload payload)
+    {
+        byte[] bytes;
+        string displayText;
+        if (isHex)
+        {
+            if (!HexCodec.TryParse(content, out bytes, out var error))
+            {
+                if (shouldShowErrors)
+                {
+                    ShowMessage("HEX 格式错误", error, InfoBarSeverity.Warning);
+                }
+
+                payload = null!;
+                return false;
+            }
+
+            displayText = HexCodec.Format(bytes);
+        }
+        else
+        {
+            if (!TextEscapeCodec.TryDecode(content, out var decodedText, out var escapeError))
+            {
+                if (shouldShowErrors)
+                {
+                    ShowMessage("转义格式错误", escapeError, InfoBarSeverity.Warning);
+                }
+
+                payload = null!;
+                return false;
+            }
+
+            var text = decodedText + ResolveLineEnding(lineEnding);
+            if (text.Length == 0)
+            {
+                if (shouldShowErrors)
+                {
+                    ShowMessage("没有发送内容", "请输入文本或选择一个行尾符。", InfoBarSeverity.Warning);
+                }
+
+                payload = null!;
+                return false;
+            }
+
+            bytes = GetSelectedTextEncoding().GetBytes(text);
+            displayText = text;
+        }
+
+        payload = new PreparedSerialPayload(bytes, displayText, isHex);
+        return true;
+    }
+
     private void SerialPort_BytesReceived(object? sender, SerialBytesReceivedEventArgs e)
     {
-        _receiveQueue.Enqueue(e.Data);
+        _receiveQueue.Enqueue(e);
         ScheduleReceiveQueueDrain();
     }
 
@@ -203,12 +225,12 @@ public sealed partial class MainPage
 
         const int maximumBatchBytes = 256 * 1024;
         var drainStarted = Stopwatch.GetTimestamp();
-        var chunks = new List<byte[]>();
+        var chunks = new List<SerialBytesReceivedEventArgs>();
         var totalLength = 0;
         while (_receiveQueue.TryDequeue(out var chunk))
         {
             chunks.Add(chunk);
-            totalLength += chunk.Length;
+            totalLength += chunk.Data.Length;
             if (totalLength >= maximumBatchBytes ||
                 Stopwatch.GetElapsedTime(drainStarted) >= TimeSpan.FromMilliseconds(8))
             {
@@ -222,13 +244,13 @@ public sealed partial class MainPage
             var offset = 0;
             foreach (var chunk in chunks)
             {
-                Buffer.BlockCopy(chunk, 0, data, offset, chunk.Length);
-                offset += chunk.Length;
+                Buffer.BlockCopy(chunk.Data, 0, data, offset, chunk.Data.Length);
+                offset += chunk.Data.Length;
             }
 
             _totalReceivedBytes += data.Length;
             var text = _receiveTextDecoder.Decode(data, GetSelectedTextEncoding());
-            AppendTerminalEntry("RX", text, rawBytes: data);
+            AppendTerminalEntry("RX", text, rawBytes: data, timestamp: chunks[0].ReceivedAt);
         }
 
         if (!_receiveQueue.IsEmpty &&
@@ -266,7 +288,7 @@ public sealed partial class MainPage
 
         if (!RepeatSendToggle.IsOn)
         {
-            _repeatSendTimer.Stop();
+            StopRepeatSending();
             return;
         }
 
@@ -277,8 +299,21 @@ public sealed partial class MainPage
             return;
         }
 
+        if (!TryPreparePayload(
+                SendTextBox.Text,
+                SendHexCheckBox.IsChecked == true,
+                LineEndingComboBox.SelectedItem as string,
+                shouldShowErrors: true,
+                out var payload))
+        {
+            RepeatSendToggle.IsOn = false;
+            return;
+        }
+
+        Volatile.Write(ref _repeatSendPayload, payload);
+        Volatile.Write(ref _repeatSendEnabled, 1);
+        Volatile.Write(ref _repeatSendFailureQueued, 0);
         UpdateRepeatSendInterval();
-        _repeatSendTimer.Start();
     }
 
     private void RepeatIntervalNumberBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) =>
@@ -291,19 +326,105 @@ public sealed partial class MainPage
             return;
         }
 
-        var value = double.IsNaN(RepeatIntervalNumberBox.Value) ? 1000 : RepeatIntervalNumberBox.Value;
-        _repeatSendTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(value, 20, 60_000));
+        var interval = GetRepeatSendInterval();
+        if (Volatile.Read(ref _repeatSendEnabled) != 0)
+        {
+            _repeatSendTimer.Change(interval, interval);
+        }
     }
 
-    private void RepeatTimer_Tick(DispatcherQueueTimer sender, object args)
+    private TimeSpan GetRepeatSendInterval()
     {
-        if (SendComposerPayload(shouldShowErrors: false))
+        var value = double.IsNaN(RepeatIntervalNumberBox.Value) ? 1000 : RepeatIntervalNumberBox.Value;
+        return TimeSpan.FromMilliseconds(Math.Clamp(value, 20, 60_000));
+    }
+
+    private void UpdateRepeatSendPayload()
+    {
+        if (Volatile.Read(ref _repeatSendEnabled) == 0)
         {
             return;
         }
 
-        RepeatSendToggle.IsOn = false;
-        ShowMessage("循环发送已停止", "请检查连接状态或发送内容。", InfoBarSeverity.Warning);
+        Volatile.Write(
+            ref _repeatSendPayload,
+            TryPreparePayload(
+                SendTextBox.Text,
+                SendHexCheckBox.IsChecked == true,
+                LineEndingComboBox.SelectedItem as string,
+                shouldShowErrors: false,
+                out var payload)
+                ? payload
+                : null);
+    }
+
+    private void RepeatTimer_Tick()
+    {
+        if (Volatile.Read(ref _repeatSendEnabled) == 0 ||
+            Interlocked.Exchange(ref _repeatSendInProgress, 1) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var payload = Volatile.Read(ref _repeatSendPayload);
+            if (payload is null || !_serialPortService.IsOpen)
+            {
+                QueueRepeatSendFailure();
+                return;
+            }
+
+            var sentAt = DateTime.Now;
+            _serialPortService.Send(payload.Bytes);
+            _ = DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_isUnloaded)
+                {
+                    return;
+                }
+
+                _totalSentBytes += payload.Bytes.Length;
+                AppendTerminalEntry("TX", payload.DisplayText, payload.IsHex, timestamp: sentAt);
+                UpdateTransferCounters();
+            });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or TimeoutException)
+        {
+            QueueRepeatSendFailure();
+        }
+        finally
+        {
+            Volatile.Write(ref _repeatSendInProgress, 0);
+        }
+    }
+
+    private void StopRepeatSending()
+    {
+        Volatile.Write(ref _repeatSendEnabled, 0);
+        Volatile.Write(ref _repeatSendPayload, null);
+        _repeatSendTimer?.Stop();
+    }
+
+    private void QueueRepeatSendFailure()
+    {
+        StopRepeatSending();
+        if (Interlocked.Exchange(ref _repeatSendFailureQueued, 1) != 0)
+        {
+            return;
+        }
+
+        _ = DispatcherQueue.TryEnqueue(() =>
+        {
+            Interlocked.Exchange(ref _repeatSendFailureQueued, 0);
+            if (_isUnloaded)
+            {
+                return;
+            }
+
+            RepeatSendToggle.IsOn = false;
+            ShowMessage("循环发送已停止", "请检查连接状态或发送内容。", InfoBarSeverity.Warning);
+        });
     }
 
     private void UpdateConnectionState()

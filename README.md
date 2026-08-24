@@ -111,7 +111,7 @@ HEX 输入会忽略 `0x` 前缀以及空格、Tab、换行、逗号、分号、�
 
 ### 循环发送
 
-循环发送周期以毫秒为单位，实际使用范围为 20–60,000 ms，默认 1000 ms。开启后等待一个周期再执行首次发送；连接断开、内容无效或发送失败时会自动停止。
+循环发送周期以毫秒为单位，实际使用范围为 20–60,000 ms，默认 1000 ms。开启后等待一个周期再执行首次发送；连接断开、内容无效或发送失败时会自动停止。周期调度使用 Windows 高分辨率等待计时器，串口写入不依赖 UI 线程，TX 时间戳在实际写入前采集，因此终端渲染和大量 RX 数据不会持续拉长发送周期。Windows 并非硬实时系统，系统高负载时仍可能出现短时调度抖动。
 
 ### 接收与显示
 
@@ -225,6 +225,7 @@ SerialPort.DataReceived
 - 读取缓冲区为 16 KiB，写入缓冲区为 4 KiB。
 - 读取超时为 500 ms，写入超时为 1000 ms。
 - 关闭前解除 `DataReceived` 订阅，再关闭并释放端口。
+- 窗口 `Closed` 和页面 `Unloaded` 都进入同一个幂等 `Shutdown()`；先停止循环发送，再显式关闭并释放串口，重复回调不会重复释放。
 - 读取过程中的 I/O、无效状态和访问异常转换为页面错误提示。
 - 连接与断开时重置流式文本解码器；清空显示内容不会重置串口连接。
 
@@ -243,6 +244,7 @@ SerialPort.DataReceived
 | `TerminalBuffer` | 文本/HEX 格式、分段缓冲和容量淘汰 |
 | `HexCodec` | HEX 文本解析和字节格式化 |
 | `TextEscapeCodec` | 底部文本发送与文本预设的转义解析 |
+| `HighResolutionPeriodicTimer` | 使用 Windows 高分辨率等待计时器提供固定周期调度 |
 | `WindowIconManager` | 从唯一 ICO 创建标题栏图像，并按窗口 DPI 从当前 EXE 提取 Win32 窗口图标 |
 | `CommandPresetStorageService` | 快捷指令 JSON 读写 |
 | `Views/MainPage.SerialPort` | 串口状态、接收队列、发送与计数 |
