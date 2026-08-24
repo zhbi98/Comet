@@ -140,7 +140,7 @@
                                      TextWrapping="Wrap"
                                      VerticalAlignment="Stretch" VerticalContentAlignment="Top"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                     ScrollViewer.VerticalScrollBarVisibility="Visible">
                                 <TextBox.Resources>
                                     <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
                                     <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />

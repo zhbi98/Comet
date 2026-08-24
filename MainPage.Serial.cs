@@ -58,6 +58,7 @@ public sealed partial class MainPage
                 RtsToggle.IsOn);
 
             _serialPort.Open(settings);
+            _receiveTextDecoder.Reset();
             var parity = SerialPortOptions.GetParityShortName(settings.Parity);
             var stopBits = SerialPortOptions.GetStopBitsShortName(settings.StopBits);
             AppendEntry("SYS", $"已连接 {portName}  ·  {settings.BaudRate} / {settings.DataBits}{parity}{stopBits}");
@@ -76,6 +77,7 @@ public sealed partial class MainPage
         _repeatTimer.Stop();
         RepeatSendToggle.IsOn = false;
         _serialPort.Close();
+        _receiveTextDecoder.Reset();
         AppendEntry("SYS", $"{portName} 已断开");
         UpdateConnectionUi();
         RefreshPorts();
@@ -220,7 +222,7 @@ public sealed partial class MainPage
             }
 
             _receivedBytes += data.Length;
-            var text = GetSelectedEncoding().GetString(data);
+            var text = _receiveTextDecoder.Decode(data, GetSelectedEncoding());
             AppendEntry("RX", text, rawBytes: data);
         }
 

@@ -14,10 +14,14 @@ namespace Comet;
 
 public sealed partial class MainPage : Page
 {
-    private const int MaxTerminalCharacters = 1_000_000;
+    // WinUI TextBox reflows the complete wrapped document after prefix edits.
+    // A 100k rolling viewport keeps binary streams interactive while the RX
+    // counter continues to track the complete session byte total.
+    private const int MaxTerminalCharacters = 100_000;
 
     private readonly SerialPortService _serialPort = new();
     private readonly TerminalBuffer _terminalBuffer;
+    private readonly StreamingTextDecoder _receiveTextDecoder = new();
     private readonly ConcurrentQueue<byte[]> _receiveQueue;
     private readonly ObservableCollection<CommandPreset> _commandPresets = [];
     private readonly DispatcherQueueTimer _repeatTimer;
@@ -29,9 +33,9 @@ public sealed partial class MainPage : Page
     private long _sentBytes;
     private int _receiveDispatchScheduled;
     private readonly StringBuilder _pendingTerminalAppend = new();
+    private int _pendingTerminalRemoveCount;
     private bool _isUpdatingTerminalText;
     private bool _terminalRenderPending;
-    private bool _terminalFullRenderRequired;
     private bool _terminalScrollPending;
     private bool _isUnloaded;
 

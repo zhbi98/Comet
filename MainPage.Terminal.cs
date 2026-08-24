@@ -14,13 +14,14 @@ public sealed partial class MainPage
     {
         _terminalRenderTimer.Stop();
         _terminalRenderPending = false;
-        _terminalFullRenderRequired = false;
+        _pendingTerminalRemoveCount = 0;
         _pendingTerminalAppend.Clear();
         _terminalBuffer.Clear();
         SetTerminalText(string.Empty, preserveSelection: false);
         _receivedBytes = 0;
         _sentBytes = 0;
         EmptyTerminalPanel.Visibility = Visibility.Visible;
+        UpdateTerminalItemStatus();
         UpdateCounters();
     }
 
@@ -28,12 +29,13 @@ public sealed partial class MainPage
     {
         _terminalRenderTimer.Stop();
         _terminalRenderPending = false;
-        _terminalFullRenderRequired = false;
+        _pendingTerminalRemoveCount = 0;
         _pendingTerminalAppend.Clear();
         _terminalBuffer.SetReceiveAsHex(ReceiveHexCheckBox.IsChecked == true);
         var preserveSelection = TerminalTextBox.SelectionLength > 0 || AutoScrollCheckBox.IsChecked != true;
         SetTerminalText(_terminalBuffer.GetText(), preserveSelection);
         EmptyTerminalPanel.Visibility = _terminalBuffer.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+        UpdateTerminalItemStatus();
     }
 
     private void TerminalTextBox_BeforeTextChanging(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
@@ -162,14 +164,25 @@ public sealed partial class MainPage
             return;
         }
 
-        if (update.RequiresFullRender)
+        var remainingRemoval = update.RemovedPrefixLength;
+        if (remainingRemoval > 0)
         {
-            _terminalFullRenderRequired = true;
-            _pendingTerminalAppend.Clear();
+            var visibleAvailable = Math.Max(0, TerminalTextBox.Text.Length - _pendingTerminalRemoveCount);
+            var removeFromVisible = Math.Min(remainingRemoval, visibleAvailable);
+            _pendingTerminalRemoveCount += removeFromVisible;
+            remainingRemoval -= removeFromVisible;
+
+            if (remainingRemoval > 0 && _pendingTerminalAppend.Length > 0)
+            {
+                var removeFromPending = Math.Min(remainingRemoval, _pendingTerminalAppend.Length);
+                _pendingTerminalAppend.Remove(0, removeFromPending);
+                remainingRemoval -= removeFromPending;
+            }
         }
-        else if (!_terminalFullRenderRequired)
+
+        if (remainingRemoval < update.AppendedText.Length)
         {
-            _pendingTerminalAppend.Append(update.AppendedText);
+            _pendingTerminalAppend.Append(update.AppendedText, remainingRemoval, update.AppendedText.Length - remainingRemoval);
         }
 
         ScheduleTerminalRender();
@@ -185,9 +198,9 @@ public sealed partial class MainPage
 
         _terminalRenderTimer.Interval = TimeSpan.FromMilliseconds(_terminalBuffer.CurrentLength switch
         {
-            < 250_000 => 50,
-            < 750_000 => 100,
-            _ => 200
+            < 25_000 => 50,
+            < 75_000 => 100,
+            _ => 250
         });
         _terminalRenderPending = true;
         _terminalRenderTimer.Start();
@@ -196,23 +209,31 @@ public sealed partial class MainPage
     private void TerminalRenderTimer_Tick(DispatcherQueueTimer sender, object args)
     {
         _terminalRenderPending = false;
-        UpdateCounters();
-        var preserveSelection = TerminalTextBox.SelectionLength > 0 || AutoScrollCheckBox.IsChecked != true;
-        if (_terminalFullRenderRequired)
+        if (_isUnloaded)
         {
-            _terminalFullRenderRequired = false;
+            _pendingTerminalRemoveCount = 0;
             _pendingTerminalAppend.Clear();
-            SetTerminalText(_terminalBuffer.GetText(), preserveSelection);
             return;
         }
 
+        UpdateCounters();
+        var preserveSelection = TerminalTextBox.SelectionLength > 0 || AutoScrollCheckBox.IsChecked != true;
+        var removedPrefixLength = _pendingTerminalRemoveCount;
+        _pendingTerminalRemoveCount = 0;
         var appendedText = _pendingTerminalAppend.ToString();
         _pendingTerminalAppend.Clear();
-        if (appendedText.Length > 0)
+        if (removedPrefixLength > 0 || appendedText.Length > 0)
         {
-            AppendTerminalText(appendedText, preserveSelection);
+            ApplyTerminalDelta(removedPrefixLength, appendedText, preserveSelection);
         }
+
+        UpdateTerminalItemStatus();
     }
+
+    private void UpdateTerminalItemStatus() =>
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetItemStatus(
+            TerminalTextBox,
+            $"可见 {_terminalBuffer.CurrentLength:N0} / {MaxTerminalCharacters:N0} 字符");
 
     private void SetTerminalText(string text, bool preserveSelection)
     {
@@ -244,20 +265,45 @@ public sealed partial class MainPage
         }
     }
 
-    private void AppendTerminalText(string appendedText, bool preserveSelection)
+    private void ApplyTerminalDelta(int removedPrefixLength, string appendedText, bool preserveSelection)
     {
         var selectionStart = TerminalTextBox.SelectionStart;
         var selectionLength = TerminalTextBox.SelectionLength;
+        var restoreReadOnly = TerminalTextBox.IsReadOnly;
         _isUpdatingTerminalText = true;
         try
         {
+            // SelectedText is the only incremental mutation API exposed by the
+            // WinUI TextBox, but it throws UnauthorizedAccessException while the
+            // control is read-only. A render queued just before disconnect can run
+            // after UpdateConnectionUi marks the terminal read-only, so temporarily
+            // allow this programmatic mutation. The UI thread cannot process user
+            // input until this synchronous block has restored the original state.
+            if (restoreReadOnly)
+            {
+                TerminalTextBox.IsReadOnly = false;
+            }
+
+            var safeRemoveCount = Math.Min(removedPrefixLength, TerminalTextBox.Text.Length);
+            if (safeRemoveCount > 0)
+            {
+                TerminalTextBox.Select(0, safeRemoveCount);
+                TerminalTextBox.SelectedText = string.Empty;
+            }
+
             TerminalTextBox.Select(TerminalTextBox.Text.Length, 0);
-            TerminalTextBox.SelectedText = appendedText;
+            if (appendedText.Length > 0)
+            {
+                TerminalTextBox.SelectedText = appendedText;
+            }
+
             if (preserveSelection)
             {
                 var textLength = TerminalTextBox.Text.Length;
-                var safeStart = Math.Min(selectionStart, textLength);
-                var safeLength = Math.Min(selectionLength, textLength - safeStart);
+                var originalSelectionEnd = selectionStart + selectionLength;
+                var safeStart = Math.Min(Math.Max(0, selectionStart - safeRemoveCount), textLength);
+                var safeEnd = Math.Min(Math.Max(0, originalSelectionEnd - safeRemoveCount), textLength);
+                var safeLength = Math.Max(0, safeEnd - safeStart);
                 TerminalTextBox.Select(safeStart, safeLength);
             }
             else
@@ -267,6 +313,11 @@ public sealed partial class MainPage
         }
         finally
         {
+            if (restoreReadOnly)
+            {
+                TerminalTextBox.IsReadOnly = true;
+            }
+
             _isUpdatingTerminalText = false;
         }
 
@@ -287,14 +338,21 @@ public sealed partial class MainPage
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
             _terminalScrollPending = false;
-            ScrollTerminalToEnd();
+            if (!_isUnloaded)
+            {
+                ScrollTerminalToEnd();
+            }
         });
     }
 
     private void ScrollTerminalToEnd()
     {
         var scrollViewer = FindVisualDescendant<ScrollViewer>(TerminalTextBox);
-        scrollViewer?.ChangeView(null, scrollViewer.ScrollableHeight, null, disableAnimation: true);
+        scrollViewer?.ChangeView(
+            0,
+            scrollViewer.ScrollableHeight,
+            null,
+            disableAnimation: true);
     }
 
     private static T? FindVisualDescendant<T>(DependencyObject root) where T : DependencyObject
