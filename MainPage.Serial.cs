@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Comet.Models;
 using Comet.Services;
 using Comet.Utilities;
 using Microsoft.UI.Dispatching;
@@ -13,11 +14,13 @@ public sealed partial class MainPage
 
     private void RefreshPorts()
     {
-        var previous = PortComboBox.SelectedItem as string;
+        var previousPortName = (PortComboBox.SelectedItem as SerialPortInfo)?.PortName;
         var ports = SerialPortService.GetAvailablePorts();
         PortComboBox.ItemsSource = ports;
 
-        if (previous is not null && ports.Contains(previous))
+        var previous = ports.FirstOrDefault(port =>
+            string.Equals(port.PortName, previousPortName, StringComparison.OrdinalIgnoreCase));
+        if (previous is not null)
         {
             PortComboBox.SelectedItem = previous;
         }
@@ -28,7 +31,7 @@ public sealed partial class MainPage
 
         PortHintText.Text = ports.Count == 0
             ? "未发现串口，请检查设备驱动或 USB 连接。"
-            : $"发现 {ports.Count} 个串口：{string.Join("、", ports)}";
+            : $"发现 {ports.Count} 个串口：{string.Join("、", ports.Select(port => port.DisplayName))}";
     }
 
     private void OpenCloseButton_Click(object sender, RoutedEventArgs e)
@@ -39,7 +42,7 @@ public sealed partial class MainPage
             return;
         }
 
-        if (PortComboBox.SelectedItem is not string portName)
+        if (PortComboBox.SelectedItem is not SerialPortInfo selectedPort)
         {
             ShowMessage("没有可用串口", "请连接设备并刷新串口列表。", InfoBarSeverity.Warning);
             return;
@@ -47,6 +50,7 @@ public sealed partial class MainPage
 
         try
         {
+            var portName = selectedPort.PortName;
             var settings = new SerialPortSettings(
                 portName,
                 (int)(BaudRateComboBox.SelectedItem ?? 115200),
