@@ -19,21 +19,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="Assets\SplashScreen.scale-200.png" />
-    <Content Include="Assets\LockScreenLogo.scale-200.png" />
-    <Content Include="Assets\Square150x150Logo.scale-200.png" />
-    <Content Include="Assets\Square44x44Logo.scale-200.png" />
-    <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
-    <Content Include="Assets\Square44x44Logo.targetsize-48_altform-lightunplated.png" />
-    <Content Include="Assets\StoreLogo.png" />
-    <Content Include="Assets\AppIcon.ico" />
-    <Content Include="Assets\CometTerminalIcon.ico" />
-    <Content Include="Assets\CometTerminalIcon.png" />
-    <Content Include="Assets\Wide310x150Logo.scale-200.png" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
+    <EmbeddedResource Include="Assets\CometTerminalIcon.ico"
+                      LogicalName="Comet.Assets.CometTerminalIcon.ico" />
   </ItemGroup>
 
   <!--
@@ -67,4 +55,16 @@
     <!-- WinUI/WinRT and preset JSON use runtime metadata; keep trimming disabled for reliable releases. -->
     <PublishTrimmed>False</PublishTrimmed>
   </PropertyGroup>
+
+  <!-- The unpackaged WinUI app PRI is generated in TargetDir but is not included by dotnet publish. -->
+  <Target Name="CopyApplicationPriToPublishDirectory" AfterTargets="Publish">
+    <PropertyGroup>
+      <ApplicationPriPath>$(TargetDir)$(AssemblyName).pri</ApplicationPriPath>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(ApplicationPriPath)')"
+           Text="Application PRI was not generated: $(ApplicationPriPath)" />
+    <Copy SourceFiles="$(ApplicationPriPath)"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

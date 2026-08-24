@@ -1,3 +1,4 @@
+using Comet.Helpers;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Windowing;
 using Windows.Graphics;
@@ -14,15 +15,17 @@ namespace Comet.Views;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
+    private readonly WindowIconManager? _windowIconManager;
+
     public MainWindow()
     {
         InitializeComponent();
 
+        AppTitleBar.IconSource = WindowIconManager.CreateTitleBarIconSource();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-
-        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "CometTerminalIcon.ico");
-        AppWindow.SetIcon(iconPath);
+        _windowIconManager = WindowIconManager.Attach(WinRT.Interop.WindowNative.GetWindowHandle(this));
+        Closed += MainWindow_Closed;
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
@@ -43,6 +46,11 @@ public sealed partial class MainWindow : Window
 
         // Navigate the root frame to the main page on startup.
         RootFrame.Navigate(typeof(MainPage));
+    }
+
+    private void MainWindow_Closed(object sender, WindowEventArgs args)
+    {
+        _windowIconManager?.Dispose();
     }
 
     public void SetConnectionStatus(string? portName)

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/Comet/Assets/CometTerminalIcon.png" width="112" alt="Comet 应用图标">
+  <img src="src/Comet/Assets/CometTerminalIcon.ico" width="112" alt="Comet 应用图标">
 </p>
 
 <h1 align="center">Comet</h1>
@@ -243,11 +243,12 @@ SerialPort.DataReceived
 | `TerminalBuffer` | 文本/HEX 格式、分段缓冲和容量淘汰 |
 | `HexCodec` | HEX 文本解析和字节格式化 |
 | `TextEscapeCodec` | 底部文本发送与文本预设的转义解析 |
+| `WindowIconManager` | 从唯一 ICO 创建标题栏图像，并按窗口 DPI 从当前 EXE 提取 Win32 窗口图标 |
 | `CommandPresetStorageService` | 快捷指令 JSON 读写 |
 | `Views/MainPage.SerialPort` | 串口状态、接收队列、发送与计数 |
 | `Views/MainPage.Terminal` | 内容区输入、日志、渲染、选择与滚动 |
 | `Views/MainPage.CommandPresets` | 快捷指令 UI 与持久化调用 |
-| `MainWindow` | 窗口尺寸、标题栏、图标和连接标题 |
+| `MainWindow` | 窗口尺寸、标题栏和连接标题 |
 
 ## 代码组织与命名
 
@@ -265,6 +266,8 @@ SerialPort.DataReceived
 | 异步方法 | 以 `Async` 结尾 | 后续异步 API 应遵循该规则 |
 
 文件夹与命名空间保持一致，例如 `Views` 对应 `Comet.Views`，`Core/Terminal` 对应 `Comet.Core.Terminal`。文件名与其中的主类型保持一致，一个文件原则上只定义一个顶层类型。同一页面的 XAML 和 partial 文件放在 `Views` 中，按 `MainPage.SerialPort.cs`、`MainPage.Terminal.cs`、`MainPage.CommandPresets.cs` 拆分职责；拆分只用于控制文件规模，不改变它们属于同一页面类的事实。
+
+应用图标只有一个源文件 `Assets/CometTerminalIcon.ico`，其中包含从 16×16 到 256×256 的多级图像。构建时，它既由 `ApplicationIcon` 写入 EXE，也作为程序集资源供标题栏读取；运行时由 `WindowIconManager` 从同一资源创建 20×20 标题栏图像，并根据窗口 DPI 选择比系统基准大一档的任务栏/窗口图标帧，避免放大低分辨率图标，不依赖工作目录或发布目录中的外部图标文件。项目为 Unpackaged，不保留未启用的 MSIX 清单和模板 Logo。
 
 ## 数据与限制
 
@@ -297,10 +300,10 @@ Comet/
 │  ├─ ENVIRONMENT.md               环境安装、构建与发布
 │  └─ TESTING.md                   测试方法与验收标准
 ├─ src/Comet/
-│  ├─ Assets/                      图标与应用资源
+│  ├─ Assets/                      唯一应用 ICO（编译时嵌入 EXE）
 │  ├─ Converters/                  UI 选项与领域值转换
 │  ├─ Core/Terminal/               终端双视图与分段缓冲
-│  ├─ Helpers/                     编码、转义与 HEX 辅助逻辑
+│  ├─ Helpers/                     编码、转义、HEX 与窗口辅助逻辑
 │  ├─ Models/                      终端、预设和端口模型
 │  ├─ Properties/PublishProfiles/  x86、x64、ARM64 发布配置
 │  ├─ Services/                    串口与预设持久化服务

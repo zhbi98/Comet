@@ -13,16 +13,17 @@
     </Window.SystemBackdrop>
 
     <Grid Background="{StaticResource CometPageBrush}" RequestedTheme="Light">
+        <Grid.Resources>
+            <x:Double x:Key="TitleBarIconMaxWidth">20</x:Double>
+            <x:Double x:Key="TitleBarIconMaxHeight">20</x:Double>
+        </Grid.Resources>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TitleBar x:Name="AppTitleBar" Title="Comet">
-            <TitleBar.IconSource>
-                <ImageIconSource ImageSource="Assets/CometTerminalIcon.png" />
-            </TitleBar.IconSource>
-        </TitleBar>
+        <TitleBar x:Name="AppTitleBar" Title="Comet" />
 
         <!--
             The Frame hosts pages for your application content. Add your UI to
