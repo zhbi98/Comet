@@ -15,10 +15,10 @@
 
 ## 测试现状
 
-仓库当前没有独立的自动化测试项目。现阶段验证由以下部分组成：
+仓库包含 `tests/Comet.Tests` 自动化测试项目。当前验证由以下部分组成：
 
 1. .NET 还原与多架构编译。
-2. 编码、HEX 和转义规则的针对性输入检查。
+2. 核心发送、双视图会话、流式解码和循环发送 ViewModel 的自动化回归测试。
 3. 实际设备或虚拟串口回环测试。
 4. 大数据、随机二进制和断开竞态测试。
 5. Windows 10/11 界面与便携包验证。
@@ -30,8 +30,9 @@
 ### 基础检查
 
 ```powershell
-dotnet restore .\src\Comet\Comet.csproj
-dotnet build .\src\Comet\Comet.csproj -c Release -p:Platform=x64
+dotnet restore .\Comet.sln
+dotnet build .\Comet.sln -c Release -p:Platform=x64
+dotnet test .\tests\Comet.Tests\Comet.Tests.csproj -c Release
 git diff --check
 ```
 
@@ -49,12 +50,14 @@ dotnet build .\src\Comet\Comet.csproj -c Release -p:Platform=ARM64
 | 修改区域 | 最低附加验证 |
 | --- | --- |
 | `Services/SerialPortService.cs` | 枚举、连接、发送、接收、断开竞态 |
-| `Core/Terminal/TerminalBuffer.cs` | 双模式完整分段会话、文本/HEX 切换、格式边界和大数据测试 |
-| `Core/Terminal/VirtualTerminalDocument.cs` | 增量折行、CR/LF、Tab、宽字符、行通知和多 MB 索引 |
+| `src/Comet.Core/Terminal/TerminalBuffer.cs` | 双模式完整分段会话、文本/HEX 切换、格式边界和大数据测试 |
+| `src/Comet.Core/Terminal/VirtualTerminalDocument.cs` | 增量折行、CR/LF、Tab、宽字符、行通知和多 MB 索引 |
 | `Controls/VirtualTerminalControl.*` | 可见行虚拟化、滚动锚点、选择、复制、键入和窗口重排 |
-| `Helpers/StreamingTextDecoder.cs` | UTF-8/GBK 跨批次字符、随机二进制、编码切换前重连 |
-| `Helpers/TextEscapeCodec.cs` | 全部转义、非法 `\x`/`\u`、未知转义 |
-| `Helpers/HexCodec.cs` | 分隔符、`0x`、奇数长度、非法字符 |
+| `src/Comet.Core/Text/StreamingTextDecoder.cs` | UTF-8/GBK 跨批次字符、随机二进制、编码切换前重连 |
+| `src/Comet.Core/Text/TextEscapeCodec.cs` | 全部转义、非法 `\x`/`\u`、未知转义 |
+| `src/Comet.Core/Text/HexCodec.cs` | 分隔符、`0x`、奇数长度、非法字符 |
+| `src/Comet.Core/Transmission/SerialPayloadEngine.cs` | 文本/HEX 发送、行尾、内容区 Enter 和编码字节一致性 |
+| `src/Comet.Core/ViewModels/RepeatSendViewModel.cs` | 首次周期、间隔更新、并发写保护、失败停止和 TX 计数 |
 | `Views/MainPage.xaml` | Windows 10/11、窗口最小尺寸、图标、滚动条、输入焦点 |
 | 快捷指令 | 创建、载入、直接发送、编辑、删除、重启持久化 |
 | 发布配置 | 干净机器启动、架构匹配、完整目录验证 |

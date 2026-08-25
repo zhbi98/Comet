@@ -1,13 +1,14 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using Comet.Services.Abstractions;
 
-namespace Comet.Helpers;
+namespace Comet.Services.Timing;
 
 /// <summary>
 /// Runs periodic work from a Windows waitable timer without depending on the UI
 /// dispatcher. The callback is invoked on a dedicated background thread.
 /// </summary>
-internal sealed class HighResolutionPeriodicTimer : IDisposable
+internal sealed class HighResolutionPeriodicTimer : IPeriodicTimer
 {
     private const uint CreateWaitableTimerHighResolution = 0x00000002;
     private const uint TimerAccess = 0x00100002;

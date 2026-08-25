@@ -1,8 +1,8 @@
 using System.Diagnostics;
+using Comet.Core.Transmission;
 using Comet.Converters;
-using Comet.Helpers;
 using Comet.Models;
-using Comet.Services;
+using Comet.ViewModels;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -11,35 +11,19 @@ namespace Comet.Views;
 
 public sealed partial class MainPage
 {
-    private sealed record PreparedSerialPayload(byte[] Bytes, string DisplayText, bool IsHex);
-
     private void RefreshPortsButton_Click(object sender, RoutedEventArgs e) => RefreshPorts();
 
     private void RefreshPorts()
     {
-        var previousPortName = (PortComboBox.SelectedItem as SerialPortInfoModel)?.PortName;
-        var ports = SerialPortService.GetAvailablePorts();
-        PortComboBox.ItemsSource = ports;
-
-        var previous = ports.FirstOrDefault(port =>
-            string.Equals(port.PortName, previousPortName, StringComparison.OrdinalIgnoreCase));
-        if (previous is not null)
-        {
-            PortComboBox.SelectedItem = previous;
-        }
-        else if (ports.Count > 0)
-        {
-            PortComboBox.SelectedIndex = 0;
-        }
-
-        PortHintText.Text = ports.Count == 0
-            ? "未发现串口，请检查设备驱动或 USB 连接。"
-            : $"发现 {ports.Count} 个串口：{string.Join("、", ports.Select(port => port.DisplayName))}";
+        ViewModel.Connection.SelectedPort = PortComboBox.SelectedItem as SerialPortInfoModel;
+        ViewModel.Connection.RefreshPorts();
+        PortComboBox.SelectedItem = ViewModel.Connection.SelectedPort;
+        PortHintText.Text = ViewModel.Connection.PortHint;
     }
 
     private void OpenCloseButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_serialPortService.IsOpen)
+        if (ViewModel.Connection.IsConnected)
         {
             DisconnectSerialPort();
             return;
@@ -64,8 +48,8 @@ public sealed partial class MainPage
                 DtrToggle.IsOn,
                 RtsToggle.IsOn);
 
-            _serialPortService.Open(connectionOptions);
-            _receiveTextDecoder.Reset();
+            ViewModel.Connection.Open(connectionOptions);
+            ViewModel.Terminal.ResetDecoder();
             var parity = SerialPortSettingsConverter.GetParityShortName(connectionOptions.Parity);
             var stopBits = SerialPortSettingsConverter.GetStopBitsShortName(connectionOptions.StopBits);
             AppendTerminalEntry("SYS", $"已连接 {portName}  ·  {connectionOptions.BaudRate} / {connectionOptions.DataBits}{parity}{stopBits}");
@@ -80,11 +64,11 @@ public sealed partial class MainPage
 
     private void DisconnectSerialPort()
     {
-        var portName = _serialPortService.PortName ?? "串口";
+        var portName = ViewModel.Connection.PortName ?? "串口";
         StopRepeatSending();
         RepeatSendToggle.IsOn = false;
-        _serialPortService.Close();
-        _receiveTextDecoder.Reset();
+        ViewModel.Connection.Close();
+        ViewModel.Terminal.ResetDecoder();
         AppendTerminalEntry("SYS", $"{portName} 已断开");
         UpdateConnectionState();
         RefreshPorts();
@@ -100,7 +84,7 @@ public sealed partial class MainPage
 
     private bool SendPayload(string content, bool isHex, string? lineEnding, bool shouldShowErrors)
     {
-        if (!_serialPortService.IsOpen)
+        if (!ViewModel.Connection.IsConnected)
         {
             if (shouldShowErrors)
             {
@@ -118,8 +102,8 @@ public sealed partial class MainPage
         try
         {
             var sentAt = DateTime.Now;
-            _serialPortService.Send(payload.Bytes);
-            _totalSentBytes += payload.Bytes.Length;
+            ViewModel.Connection.Send(payload.Bytes);
+            ViewModel.Terminal.RecordSent(payload.Bytes.Length);
             AppendTerminalEntry("TX", payload.DisplayText, payload.IsHex, timestamp: sentAt);
             UpdateTransferCounters();
             return true;
@@ -142,54 +126,30 @@ public sealed partial class MainPage
         bool shouldShowErrors,
         out PreparedSerialPayload payload)
     {
-        byte[] bytes;
-        string displayText;
-        if (isHex)
+        if (ViewModel.Transmission.TryPrepareComposerPayload(
+                content,
+                isHex,
+                lineEnding,
+                GetSelectedTextEncoding(),
+                out payload,
+                out var error))
         {
-            if (!HexCodec.TryParse(content, out bytes, out var error))
-            {
-                if (shouldShowErrors)
-                {
-                    ShowMessage("HEX 格式错误", error, InfoBarSeverity.Warning);
-                }
-
-                payload = null!;
-                return false;
-            }
-
-            displayText = HexCodec.Format(bytes);
-        }
-        else
-        {
-            if (!TextEscapeCodec.TryDecode(content, out var decodedText, out var escapeError))
-            {
-                if (shouldShowErrors)
-                {
-                    ShowMessage("转义格式错误", escapeError, InfoBarSeverity.Warning);
-                }
-
-                payload = null!;
-                return false;
-            }
-
-            var text = decodedText + ResolveLineEnding(lineEnding);
-            if (text.Length == 0)
-            {
-                if (shouldShowErrors)
-                {
-                    ShowMessage("没有发送内容", "请输入文本或选择一个行尾符。", InfoBarSeverity.Warning);
-                }
-
-                payload = null!;
-                return false;
-            }
-
-            bytes = GetSelectedTextEncoding().GetBytes(text);
-            displayText = text;
+            return true;
         }
 
-        payload = new PreparedSerialPayload(bytes, displayText, isHex);
-        return true;
+        if (shouldShowErrors)
+        {
+            var title = error.Kind switch
+            {
+                SerialPayloadErrorKind.InvalidHex => "HEX 格式错误",
+                SerialPayloadErrorKind.InvalidEscape => "转义格式错误",
+                _ => "没有发送内容"
+            };
+            ShowMessage(title, error.Message, InfoBarSeverity.Warning);
+        }
+
+        payload = null!;
+        return false;
     }
 
     private void SerialPort_BytesReceived(object? sender, SerialBytesReceivedEventArgs e)
@@ -254,8 +214,8 @@ public sealed partial class MainPage
                 offset += chunk.Data.Length;
             }
 
-            _totalReceivedBytes += data.Length;
-            var text = _receiveTextDecoder.Decode(data, GetSelectedTextEncoding());
+            ViewModel.Terminal.RecordReceived(data.Length);
+            var text = ViewModel.Terminal.DecodeReceived(data, GetSelectedTextEncoding());
             AppendTerminalEntry("RX", text, rawBytes: data, timestamp: chunks[0].ReceivedAt);
         }
 
@@ -287,18 +247,13 @@ public sealed partial class MainPage
 
     private void RepeatSendToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        if (_repeatSendTimer is null)
-        {
-            return;
-        }
-
         if (!RepeatSendToggle.IsOn)
         {
             StopRepeatSending();
             return;
         }
 
-        if (!_serialPortService.IsOpen)
+        if (!ViewModel.Connection.IsConnected)
         {
             RepeatSendToggle.IsOn = false;
             ShowMessage("无法循环发送", "请先连接串口。", InfoBarSeverity.Warning);
@@ -316,10 +271,7 @@ public sealed partial class MainPage
             return;
         }
 
-        Volatile.Write(ref _repeatSendPayload, payload);
-        Volatile.Write(ref _repeatSendEnabled, 1);
-        Volatile.Write(ref _repeatSendFailureQueued, 0);
-        UpdateRepeatSendInterval();
+        ViewModel.RepeatSending.Start(payload, GetRepeatSendInterval());
     }
 
     private void RepeatIntervalNumberBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) =>
@@ -327,16 +279,7 @@ public sealed partial class MainPage
 
     private void UpdateRepeatSendInterval()
     {
-        if (_repeatSendTimer is null)
-        {
-            return;
-        }
-
-        var interval = GetRepeatSendInterval();
-        if (Volatile.Read(ref _repeatSendEnabled) != 0)
-        {
-            _repeatSendTimer.Change(interval, interval);
-        }
+        ViewModel.RepeatSending.UpdateInterval(GetRepeatSendInterval());
     }
 
     private TimeSpan GetRepeatSendInterval()
@@ -347,13 +290,12 @@ public sealed partial class MainPage
 
     private void UpdateRepeatSendPayload()
     {
-        if (Volatile.Read(ref _repeatSendEnabled) == 0)
+        if (!ViewModel.RepeatSending.IsEnabled)
         {
             return;
         }
 
-        Volatile.Write(
-            ref _repeatSendPayload,
+        ViewModel.RepeatSending.UpdatePayload(
             TryPreparePayload(
                 SendTextBox.Text,
                 SendHexCheckBox.IsChecked == true,
@@ -364,67 +306,27 @@ public sealed partial class MainPage
                 : null);
     }
 
-    private void RepeatTimer_Tick()
+    private void RepeatSending_PayloadSent(object? sender, RepeatedPayloadSentEventArgs e)
     {
-        // Timer callbacks run outside the UI thread. Only one write may be active;
-        // status counters and terminal rendering are marshalled back afterwards.
-        if (Volatile.Read(ref _repeatSendEnabled) == 0 ||
-            Interlocked.Exchange(ref _repeatSendInProgress, 1) != 0)
+        _ = DispatcherQueue.TryEnqueue(() =>
         {
-            return;
-        }
-
-        try
-        {
-            var payload = Volatile.Read(ref _repeatSendPayload);
-            if (payload is null || !_serialPortService.IsOpen)
+            if (_isUnloaded)
             {
-                QueueRepeatSendFailure();
                 return;
             }
 
-            var sentAt = DateTime.Now;
-            _serialPortService.Send(payload.Bytes);
-            _ = DispatcherQueue.TryEnqueue(() =>
-            {
-                if (_isUnloaded)
-                {
-                    return;
-                }
-
-                _totalSentBytes += payload.Bytes.Length;
-                AppendTerminalEntry("TX", payload.DisplayText, payload.IsHex, timestamp: sentAt);
-                UpdateTransferCounters();
-            });
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException or TimeoutException)
-        {
-            QueueRepeatSendFailure();
-        }
-        finally
-        {
-            Volatile.Write(ref _repeatSendInProgress, 0);
-        }
+            ViewModel.Terminal.RecordSent(e.Payload.Bytes.Length);
+            AppendTerminalEntry("TX", e.Payload.DisplayText, e.Payload.IsHex, timestamp: e.SentAt);
+            UpdateTransferCounters();
+        });
     }
 
-    private void StopRepeatSending()
-    {
-        Volatile.Write(ref _repeatSendEnabled, 0);
-        Volatile.Write(ref _repeatSendPayload, null);
-        _repeatSendTimer?.Stop();
-    }
+    private void StopRepeatSending() => ViewModel.RepeatSending.Stop();
 
-    private void QueueRepeatSendFailure()
+    private void RepeatSending_SendFailed()
     {
-        StopRepeatSending();
-        if (Interlocked.Exchange(ref _repeatSendFailureQueued, 1) != 0)
-        {
-            return;
-        }
-
         _ = DispatcherQueue.TryEnqueue(() =>
         {
-            Interlocked.Exchange(ref _repeatSendFailureQueued, 0);
             if (_isUnloaded)
             {
                 return;
@@ -437,7 +339,7 @@ public sealed partial class MainPage
 
     private void UpdateConnectionState()
     {
-        var isOpen = _serialPortService.IsOpen;
+        var isOpen = ViewModel.Connection.IsConnected;
         SettingsPanel.IsHitTestVisible = !isOpen;
         SettingsPanel.Opacity = isOpen ? 0.55 : 1;
         SendButton.IsEnabled = isOpen;
@@ -445,10 +347,10 @@ public sealed partial class MainPage
         ToolTipService.SetToolTip(
             TerminalView,
             isOpen ? "键入内容将同步发送到串口；内容仅显示设备 RX 回传。" : "连接串口后可在内容区键入发送；当前仍可选择和复制内容。");
-        FooterConnectionText.Text = isOpen ? $"{_serialPortService.PortName} · 通信中" : "未连接";
+        FooterConnectionText.Text = isOpen ? $"{ViewModel.Connection.PortName} · 通信中" : "未连接";
         if (App.CurrentWindow is MainWindow window)
         {
-            window.SetConnectionStatus(isOpen ? _serialPortService.PortName : null);
+            window.SetConnectionStatus(isOpen ? ViewModel.Connection.PortName : null);
         }
 
         ConnectionDot.Fill = isOpen ? _connectedBrush : _disconnectedBrush;
@@ -462,7 +364,7 @@ public sealed partial class MainPage
 
     private void UpdateTransferCounters()
     {
-        ReceiveCountText.Text = $"RX  {FormatByteCount(_totalReceivedBytes)}";
-        SendCountText.Text = $"TX  {FormatByteCount(_totalSentBytes)}";
+        ReceiveCountText.Text = ViewModel.Terminal.ReceiveCountText;
+        SendCountText.Text = ViewModel.Terminal.SendCountText;
     }
 }

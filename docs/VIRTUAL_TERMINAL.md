@@ -21,8 +21,11 @@ Comet 的内容区使用自定义 `VirtualTerminalControl`，不再把完整接�
 
 ```text
 SerialPortService
-  -> 接收队列与 StreamingTextDecoder
-  -> TerminalBuffer
+  -> ConnectionViewModel
+  -> 接收队列
+  -> TerminalViewModel
+       ├─ StreamingTextDecoder
+       └─ TerminalBuffer
        ├─ 文本格式化完整会话（分段）
        └─ HEX 格式化完整会话（分段）
   -> VirtualTerminalDocument（当前模式）
@@ -106,10 +109,11 @@ SerialPortService
 
 控件内部保留一个 1×1、透明的 `TextBox` 作为 Windows 文本输入代理；显式把最小尺寸设为 0，避免默认文本框尺寸覆盖内容区命中范围。点击内容区后，焦点转移到代理：
 
-1. `CharacterReceived` 获取当前键盘布局或输入法产生的组合字符，立即标记为已处理并通过 `InputReceived` 转发。
-2. 剪贴板粘贴等不产生逐键字符的输入由 `TextChanged` 读取；使用重入保护立即清空代理。
-3. 方向键、选择和复制快捷键先由终端交互层处理，不作为串口字符发送。
-4. 页面应用当前字符编码和终端换行规则，再写入串口并增加 TX 字节计数。
+1. `TextChanged` 获取当前键盘布局或输入法提交的文本，通过 `InputReceived` 转发，然后使用重入保护立即清空代理。
+2. 剪贴板文本由专用 `Paste` 事件读取，并将事件标记为已处理，防止代理插入后再次触发普通键入路径。
+3. 普通键入不再同时订阅 `CharacterReceived`，保证每段已提交文本只有一条发送路径。
+4. 方向键、选择和复制快捷键先由终端交互层处理，不作为串口字符发送。
+5. 页面应用当前字符编码和终端换行规则，再写入串口并增加 TX 字节计数。
 
 这种方式保留键盘、输入法和粘贴入口，同时让显示文档只由接收/格式化链路修改。串口断开时只把输入代理设为只读；活动文档仍可滚动和复制。
 

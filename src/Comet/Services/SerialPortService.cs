@@ -3,10 +3,11 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Comet.Models;
+using Comet.Services.Abstractions;
 
 namespace Comet.Services;
 
-public sealed class SerialPortService : IDisposable
+public sealed class SerialPortService : ISerialPortService
 {
     private const uint DIGCF_PRESENT = 0x00000002;
     private const uint SPDRP_DEVICE_DESCRIPTION = 0x00000000;
@@ -54,7 +55,7 @@ public sealed class SerialPortService : IDisposable
         }
     }
 
-    public static IReadOnlyList<SerialPortInfoModel> GetAvailablePorts()
+    public IReadOnlyList<SerialPortInfoModel> GetAvailablePorts()
     {
         var friendlyNames = GetPresentPortFriendlyNames();
         return SerialPort.GetPortNames()

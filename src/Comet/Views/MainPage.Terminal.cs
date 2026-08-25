@@ -15,10 +15,8 @@ public sealed partial class MainPage
         _terminalRenderTimer.Stop();
         _isTerminalRenderPending = false;
         _pendingTerminalText.Clear();
-        _terminalBuffer.Clear();
+        ViewModel.Terminal.Clear();
         TerminalView.Clear();
-        _totalReceivedBytes = 0;
-        _totalSentBytes = 0;
         EmptyTerminalPanel.Visibility = Visibility.Visible;
         UpdateTerminalItemStatus();
         UpdateTransferCounters();
@@ -31,17 +29,17 @@ public sealed partial class MainPage
         _terminalRenderTimer.Stop();
         _isTerminalRenderPending = false;
         _pendingTerminalText.Clear();
-        _terminalBuffer.SetReceiveAsHex(ReceiveHexCheckBox.IsChecked == true);
+        ViewModel.Terminal.SetReceiveAsHex(ReceiveHexCheckBox.IsChecked == true);
         TerminalView.SetText(
-            _terminalBuffer.GetSessionText(),
+            ViewModel.Terminal.SessionText,
             AutoScrollCheckBox.IsChecked == true);
-        EmptyTerminalPanel.Visibility = _terminalBuffer.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+        EmptyTerminalPanel.Visibility = ViewModel.Terminal.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
         UpdateTerminalItemStatus();
     }
 
     private void SendTerminalInput(string text)
     {
-        if (!_serialPortService.IsOpen)
+        if (!ViewModel.Connection.IsConnected)
         {
             return;
         }
@@ -50,15 +48,12 @@ public sealed partial class MainPage
         {
             // The terminal input surface forwards real newline characters, unlike the
             // bottom composer where escape sequences are parsed before this point.
-            var configuredLineEnding = ResolveLineEnding(LineEndingComboBox.SelectedItem as string);
-            var terminalLineEnding = configuredLineEnding.Length == 0 ? "\n" : configuredLineEnding;
-            var terminalText = text
-                .Replace("\r\n", "\n")
-                .Replace('\r', '\n')
-                .Replace("\n", terminalLineEnding);
-            var payload = GetSelectedTextEncoding().GetBytes(terminalText);
-            _serialPortService.Send(payload);
-            _totalSentBytes += payload.Length;
+            var payload = ViewModel.Transmission.PrepareTerminalInput(
+                text,
+                LineEndingComboBox.SelectedItem as string,
+                GetSelectedTextEncoding());
+            ViewModel.Connection.Send(payload);
+            ViewModel.Terminal.RecordSent(payload.Length);
             UpdateTransferCounters();
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or TimeoutException)
@@ -70,7 +65,7 @@ public sealed partial class MainPage
 
     private async void SaveLogButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_terminalBuffer.SessionLength == 0)
+        if (ViewModel.Terminal.SessionLength == 0)
         {
             ShowMessage("没有可保存的内容", "终端日志目前为空。", InfoBarSeverity.Informational);
             return;
@@ -99,7 +94,7 @@ public sealed partial class MainPage
                 return;
             }
 
-            var logText = _terminalBuffer.GetSessionText();
+            var logText = ViewModel.Terminal.SessionText;
             await FileIO.WriteTextAsync(file, logText, Windows.Storage.Streams.UnicodeEncoding.Utf8);
             ShowMessage("日志已保存", file.Path, InfoBarSeverity.Success);
         }
@@ -128,7 +123,7 @@ public sealed partial class MainPage
         };
 
         var shouldDisplay = shouldShowDetails || direction == "RX";
-        var update = _terminalBuffer.Append(entry, shouldDisplay, ReceiveHexCheckBox.IsChecked == true);
+        var update = ViewModel.Terminal.Append(entry, shouldDisplay, ReceiveHexCheckBox.IsChecked == true);
         if (!update.HasChange)
         {
             return;
@@ -191,7 +186,7 @@ public sealed partial class MainPage
         else
         {
             var (first, last) = TerminalView.GetVisibleLineRange();
-            status = $"行 {first + 1:N0}-{last + 1:N0} / {TerminalView.LineCount:N0} · 会话 {_terminalBuffer.SessionLength:N0}";
+            status = $"行 {first + 1:N0}-{last + 1:N0} / {TerminalView.LineCount:N0} · 会话 {ViewModel.Terminal.SessionLength:N0}";
         }
 
         TerminalBufferStatusText.Text = status;

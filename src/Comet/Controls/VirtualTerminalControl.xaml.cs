@@ -49,7 +49,7 @@ public sealed partial class VirtualTerminalControl : UserControl
         AddHandler(PointerReleasedEvent, new PointerEventHandler(OnPointerReleased), handledEventsToo: true);
         AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnPointerCaptureLost), handledEventsToo: true);
         InputProxy.AddHandler(KeyDownEvent, new KeyEventHandler(OnInputProxyKeyDown), handledEventsToo: true);
-        InputProxy.CharacterReceived += InputProxy_CharacterReceived;
+        InputProxy.Paste += InputProxy_Paste;
         InputProxy.GotFocus += InputProxy_GotFocus;
         InputProxy.LostFocus += InputProxy_LostFocus;
         GotFocus += VirtualTerminalControl_GotFocus;
@@ -560,22 +560,37 @@ public sealed partial class VirtualTerminalControl : UserControl
         }
     }
 
-    private void InputProxy_CharacterReceived(UIElement sender, CharacterReceivedRoutedEventArgs args)
+    private async void InputProxy_Paste(object sender, TextControlPasteEventArgs args)
     {
-        var character = args.Character;
-        if (character == '\0')
+        // Prevent the TextBox from inserting the clipboard contents. Forwarding the
+        // Paste event directly keeps pasted text separate from ordinary key input.
+        args.Handled = true;
+        if (!_isInputEnabled)
         {
             return;
         }
 
-        // CharacterReceived reports the composed character produced by the current
-        // keyboard layout or IME. Handling it here avoids waiting for the invisible
-        // proxy to retain editable text. Clipboard paste remains on TextChanged.
-        args.Handled = true;
-        if (_isInputEnabled && character is not '\b' and not '\u007F')
+        try
         {
+            var clipboardContent = Clipboard.GetContent();
+            if (!clipboardContent.Contains(StandardDataFormats.Text))
+            {
+                return;
+            }
+
+            var pastedText = await clipboardContent.GetTextAsync();
+            if (!_isInputEnabled || pastedText.Length == 0)
+            {
+                return;
+            }
+
             ResetCaretBlink();
-            InputReceived?.Invoke(this, new TerminalInputEventArgs(character.ToString()));
+            InputReceived?.Invoke(this, new TerminalInputEventArgs(pastedText));
+        }
+        catch (Exception)
+        {
+            // Clipboard ownership can change while the asynchronous read is pending.
+            // A transient clipboard failure must not terminate the terminal session.
         }
     }
 
@@ -637,8 +652,8 @@ public sealed partial class VirtualTerminalControl : UserControl
             return;
         }
 
-        // Paste operations can bypass CharacterReceived. Capture the temporary value,
-        // then clear it under a reentrancy guard so the proxy never becomes local echo.
+        // TextChanged is the single path for committed keyboard text. Capture the
+        // temporary value before clearing the invisible proxy under a reentrancy guard.
         var insertedText = inputProxy.Text;
         _isClearingInputProxy = true;
         inputProxy.Text = string.Empty;

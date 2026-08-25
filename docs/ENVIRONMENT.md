@@ -74,10 +74,10 @@ dotnet --list-sdks
 确认输出中存在 `10.0.x` SDK，操作系统 RID 与目标架构匹配。然后在仓库根目录验证还原：
 
 ```powershell
-dotnet restore .\src\Comet\Comet.csproj
+dotnet restore .\Comet.sln
 ```
 
-当前没有 `global.json`，因此默认使用机器上可用的最高兼容 .NET SDK。团队开发需要锁定 SDK 时，可另行添加 `global.json` 并统一版本。
+仓库根目录的 `global.json` 只指定 .NET 10 测试使用 Microsoft Testing Platform，不锁定 SDK 补丁版本；构建仍使用机器上可用的最高兼容 .NET 10 SDK。
 
 ## 构建与运行
 
@@ -96,6 +96,12 @@ Release x64：
 dotnet build .\src\Comet\Comet.csproj -c Release -p:Platform=x64
 ```
 
+核心回归测试：
+
+```powershell
+dotnet test .\tests\Comet.Tests\Comet.Tests.csproj -c Release
+```
+
 典型输出目录：
 
 ```text
@@ -110,7 +116,7 @@ src\Comet\bin\x64\Release\net10.0-windows10.0.26100.0\win-x64\
 3. 选择 `Debug | x64` 或 `Release | x64`。
 4. 直接启动调试或执行“不调试启动”。
 
-项目是 Unpackaged WinUI 应用，不需要部署或注册 MSIX。解决方案当前直接列出 x86 和 x64；ARM64 已在项目及发布配置中定义，建议通过命令行或对应发布配置生成。
+`Comet` 是启动项目，`Comet.Core` 是纯 C# 核心类库。应用是 Unpackaged WinUI 程序，不需要部署或注册 MSIX。解决方案当前直接列出 x86 和 x64；ARM64 已在项目及发布配置中定义，建议通过命令行或对应发布配置生成。
 
 ### 调试串口
 

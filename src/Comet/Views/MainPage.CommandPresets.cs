@@ -1,5 +1,4 @@
 using Comet.Models;
-using Comet.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -9,16 +8,16 @@ public sealed partial class MainPage
 {
     private void InitializeCommandPresets()
     {
-        // Bind once to the observable collection so later add and remove operations
-        // update the list without replacing its ItemsSource.
-        PresetList.ItemsSource = _commandPresets;
-        foreach (var preset in CommandPresetStorageService.LoadPresets())
+        try
         {
-            _commandPresets.Add(preset);
+            ViewModel.CommandPresets.Initialize();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Startup behavior remains non-blocking when preferences cannot be saved.
         }
 
         UpdatePresetPanelState();
-        SaveCommandPresets(shouldShowError: false);
     }
 
     private void TogglePresetPanelButton_Click(object sender, RoutedEventArgs e)
@@ -61,9 +60,7 @@ public sealed partial class MainPage
             return;
         }
 
-        _commandPresets.Remove(preset);
-        UpdatePresetPanelState();
-        SaveCommandPresets(shouldShowError: true);
+        RunPresetMutation(() => ViewModel.CommandPresets.Delete(preset));
     }
 
     private void AddPresetButton_Click(object sender, RoutedEventArgs e)
@@ -76,22 +73,19 @@ public sealed partial class MainPage
             return;
         }
 
-        var name = string.IsNullOrWhiteSpace(NewPresetNameTextBox.Text)
-            ? $"指令 {_commandPresets.Count + 1}"
-            : NewPresetNameTextBox.Text.Trim();
         var lineEnding = (NewPresetLineEndingComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "无";
 
-        _commandPresets.Add(new CommandPresetModel
+        RunPresetMutation(() =>
+            ViewModel.CommandPresets.Add(
+                NewPresetNameTextBox.Text,
+                command,
+                NewPresetHexCheckBox.IsChecked == true,
+                lineEnding));
+        if (ViewModel.CommandPresets.Items.Count > 0)
         {
-            Name = name,
-            Command = command,
-            IsHex = NewPresetHexCheckBox.IsChecked == true,
-            LineEnding = lineEnding
-        });
+            PresetList.ScrollIntoView(ViewModel.CommandPresets.Items[^1]);
+        }
 
-        UpdatePresetPanelState();
-        SaveCommandPresets(shouldShowError: true);
-        PresetList.ScrollIntoView(_commandPresets[^1]);
         NewPresetNameTextBox.Text = string.Empty;
         NewPresetCommandTextBox.Text = string.Empty;
         NewPresetCommandTextBox.Focus(FocusState.Programmatic);
@@ -106,9 +100,8 @@ public sealed partial class MainPage
 
         // The item template uses one-way bindings. Commit edits explicitly on focus
         // loss, then normalize the visible value before persisting the collection.
-        preset.Name = string.IsNullOrWhiteSpace(textBox.Text) ? "未命名指令" : textBox.Text.Trim();
+        RunPresetMutation(() => ViewModel.CommandPresets.UpdateName(preset, textBox.Text));
         textBox.Text = preset.Name;
-        SaveCommandPresets(shouldShowError: true);
     }
 
     private void PresetCommandTextBox_LostFocus(object sender, RoutedEventArgs e)
@@ -118,8 +111,7 @@ public sealed partial class MainPage
             return;
         }
 
-        preset.Command = textBox.Text;
-        SaveCommandPresets(shouldShowError: true);
+        RunPresetMutation(() => ViewModel.CommandPresets.UpdateCommand(preset, textBox.Text));
     }
 
     private CommandPresetModel? FindCommandPreset(object sender)
@@ -131,7 +123,7 @@ public sealed partial class MainPage
 
         // Resolve by the stable model identifier because ListView containers may be
         // recycled and the clicked element is not itself the data item.
-        return _commandPresets.FirstOrDefault(preset => preset.Id == id);
+        return ViewModel.CommandPresets.Find(id);
     }
 
     private void LoadPresetIntoSendComposer(CommandPresetModel preset)
@@ -143,22 +135,21 @@ public sealed partial class MainPage
 
     private void UpdatePresetPanelState()
     {
-        PresetCountText.Text = $"{_commandPresets.Count} 条预设";
-        EmptyPresetText.Visibility = _commandPresets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        PresetCountText.Text = ViewModel.CommandPresets.CountText;
+        EmptyPresetText.Visibility = ViewModel.CommandPresets.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void SaveCommandPresets(bool shouldShowError)
+    private void RunPresetMutation(Action mutation)
     {
         try
         {
-            CommandPresetStorageService.SavePresets(_commandPresets);
+            mutation();
+            UpdatePresetPanelState();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            if (shouldShowError)
-            {
-                ShowMessage("预设保存失败", exception.Message, InfoBarSeverity.Error);
-            }
+            ShowMessage("预设保存失败", exception.Message, InfoBarSeverity.Error);
+            UpdatePresetPanelState();
         }
     }
 }

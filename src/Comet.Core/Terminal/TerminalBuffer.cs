@@ -1,5 +1,5 @@
 using System.Text;
-using Comet.Helpers;
+using Comet.Core.Text;
 using Comet.Models;
 
 namespace Comet.Core.Terminal;

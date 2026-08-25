@@ -1,4 +1,5 @@
-using Comet.Helpers;
+using Comet.ViewModels;
+using Comet.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Windowing;
 using Windows.Graphics;
@@ -17,7 +18,7 @@ public sealed partial class MainWindow : Window
 {
     private readonly WindowIconManager? _windowIconManager;
 
-    public MainWindow()
+    public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
 
@@ -44,8 +45,7 @@ public sealed partial class MainWindow : Window
                 workArea.Y + Math.Max(0, (workArea.Height - windowSize.Height) / 2)));
         }
 
-        // Navigate the root frame to the main page on startup.
-        RootFrame.Navigate(typeof(MainPage));
+        RootFrame.Content = new MainPage(viewModel);
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)

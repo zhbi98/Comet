@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace Comet.Helpers;
+namespace Comet.Core.Text;
 
 public static class HexCodec
 {

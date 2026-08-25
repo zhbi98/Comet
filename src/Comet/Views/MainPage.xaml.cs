@@ -1,10 +1,7 @@
 using System.Collections.Concurrent;
-using System.Collections.ObjectModel;
 using System.Text;
-using Comet.Core.Terminal;
 using Comet.Models;
-using Comet.Services;
-using Comet.Helpers;
+using Comet.ViewModels;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -14,37 +11,30 @@ namespace Comet.Views;
 
 public sealed partial class MainPage : Page
 {
-    private readonly SerialPortService _serialPortService = new();
-    private readonly TerminalBuffer _terminalBuffer;
-    private readonly StreamingTextDecoder _receiveTextDecoder = new();
     private readonly ConcurrentQueue<SerialBytesReceivedEventArgs> _receiveQueue;
-    private readonly ObservableCollection<CommandPresetModel> _commandPresets = [];
-    private readonly HighResolutionPeriodicTimer _repeatSendTimer;
     private readonly DispatcherQueueTimer _terminalRenderTimer;
     private readonly SolidColorBrush _connectedBrush = new(Windows.UI.Color.FromArgb(255, 22, 135, 93));
     private readonly SolidColorBrush _disconnectedBrush = new(Windows.UI.Color.FromArgb(255, 102, 118, 138));
 
-    private long _totalReceivedBytes;
-    private long _totalSentBytes;
     private int _receiveDrainScheduled;
     private readonly StringBuilder _pendingTerminalText = new();
     private bool _isTerminalRenderPending;
     private bool _isUnloaded;
-    private PreparedSerialPayload? _repeatSendPayload;
-    private int _repeatSendEnabled;
-    private int _repeatSendInProgress;
-    private int _repeatSendFailureQueued;
     private int _shutdownState;
 
-    public MainPage()
+    public MainViewModel ViewModel { get; }
+
+    public MainPage(MainViewModel viewModel)
     {
+        ViewModel = viewModel;
         InitializeComponent();
+        // DataContext supports conventional bindings; x:Bind continues to use the
+        // strongly typed ViewModel property exposed by this page.
+        DataContext = ViewModel;
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
-        _terminalBuffer = new TerminalBuffer();
         _receiveQueue = new ConcurrentQueue<SerialBytesReceivedEventArgs>();
 
-        _repeatSendTimer = new HighResolutionPeriodicTimer(RepeatTimer_Tick);
         SendTextBox.TextChanged += (_, _) => UpdateRepeatSendPayload();
         SendHexCheckBox.Click += (_, _) => UpdateRepeatSendPayload();
         LineEndingComboBox.SelectionChanged += (_, _) => UpdateRepeatSendPayload();
@@ -64,8 +54,10 @@ public sealed partial class MainPage : Page
                 TerminalView.ScrollToEnd();
             }
         };
-        _serialPortService.BytesReceived += SerialPort_BytesReceived;
-        _serialPortService.ErrorOccurred += SerialPort_ErrorOccurred;
+        ViewModel.Connection.BytesReceived += SerialPort_BytesReceived;
+        ViewModel.Connection.ErrorOccurred += SerialPort_ErrorOccurred;
+        ViewModel.RepeatSending.PayloadSent += RepeatSending_PayloadSent;
+        ViewModel.RepeatSending.SendFailed += RepeatSending_SendFailed;
 
         InitializeSerialOptions();
         InitializeCommandPresets();
@@ -94,11 +86,10 @@ public sealed partial class MainPage : Page
 
         _isUnloaded = true;
         StopRepeatSending();
-        _repeatSendTimer.Dispose();
         _terminalRenderTimer.Stop();
         try
         {
-            _serialPortService.Close();
+            ViewModel.Connection.Close();
         }
         catch (Exception exception) when (
             exception is UnauthorizedAccessException or IOException or InvalidOperationException)
@@ -107,7 +98,7 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            _serialPortService.Dispose();
+            ViewModel.Dispose();
         }
     }
 
@@ -138,20 +129,6 @@ public sealed partial class MainPage : Page
     }
 
     private System.Text.Encoding GetSelectedTextEncoding() =>
-        TextEncodingCatalog.Get(EncodingComboBox.SelectedItem as string);
+        ViewModel.Transmission.GetEncoding(EncodingComboBox.SelectedItem as string);
 
-    private static string ResolveLineEnding(string? lineEnding) => lineEnding switch
-    {
-        "CRLF" => "\r\n",
-        "CR" => "\r",
-        "LF" => "\n",
-        _ => string.Empty
-    };
-
-    private static string FormatByteCount(long value) => value switch
-    {
-        >= 1024 * 1024 => $"{value / 1024d / 1024d:F2} MB",
-        >= 1024 => $"{value / 1024d:F2} KB",
-        _ => $"{value} B"
-    };
 }

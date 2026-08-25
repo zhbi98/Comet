@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="docs/ENVIRONMENT.md">环境安装</a> ·
+  <a href="docs/ARCHITECTURE.md">软件架构</a> ·
   <a href="docs/TESTING.md">测试指南</a> ·
   <a href="docs/VIRTUAL_TERMINAL.md">虚拟化终端设计</a>
 </p>
@@ -101,7 +102,7 @@ HEX 输入会忽略 `0x` 前缀以及空格、Tab、换行、逗号、分号、�
 
 ### 内容区键入
 
-串口连接时，点击内容区会把键盘焦点交给透明输入代理。普通键入和输入法组合字符由字符事件直接转发，粘贴文本由代理的文本变化事件提取并立即清空，然后发送新增部分。因此：
+串口连接时，点击内容区会把键盘焦点交给透明输入代理。普通键入和输入法提交的文本统一由代理的文本变化事件提取并立即清空；粘贴文本由专用粘贴事件读取并阻止代理插入。逐键输入只有一条发送路径，避免同一按键被重复转发。因此：
 
 - 输入不会直接留在内容区；只有设备回传的数据会显示。
 - 内容区获得键盘焦点时显示闪烁的竖向光标；光标只表示输入位置，不是本地回显。
@@ -176,14 +177,17 @@ HH:mm:ss.fff  SYS  状态
 
 ## 架构与设计
 
+Comet 采用两个纯 C# 项目的分层 MVVM：`Comet.Core` 保存不依赖 WinUI 的核心规则、服务契约和 ViewModel，`Comet` 负责 WinUI 3 界面与 Windows 具体服务。`App` 创建并注入根 `MainViewModel`，View 只保留 WinUI 专属交互。设计借鉴 Windows Calculator 的核心/UI 分离与 Files 的 MVVM 组织方式，不引入 C、C++ 或跨语言桥接。完整依赖规则见 [软件架构](docs/ARCHITECTURE.md)。
+
 ### 数据接收链路
 
 ```text
 SerialPort.DataReceived
   -> SerialPortService 读取字节
+  -> ConnectionViewModel 转发接收事件
   -> ConcurrentQueue<byte[]>
   -> DispatcherQueue 低优先级批处理
-  -> StreamingTextDecoder
+  -> TerminalViewModel / StreamingTextDecoder
   -> TerminalEntryModel
   -> TerminalBuffer 文本/HEX 完整分段会话
   -> VirtualTerminalDocument 增量建立折行索引
@@ -217,7 +221,7 @@ SerialPort.DataReceived
 4. 常规追加只重新计算原末行和新增后缀，并向行集合发送末行替换和新增行通知，不重建整框。
 5. 窗口宽度、字体或字号变化时重新计算折行索引；滚动锚点使用文档字符位置保存，所以重排后仍定位到同一段数据。
 6. 选择范围以完整文档的字符偏移表示。行呈现器只绘制当前可见部分的选区，复制时直接从完整文档提取原始跨行文本，时间戳、RX/TX/SYS 和正文没有控件边界。
-7. 透明输入代理通过 `CharacterReceived` 接收键盘布局或输入法产生的组合字符，通过 `TextChanged` 接收粘贴文本；内容立即交给串口发送并清空代理，因此不会形成本地回显。
+7. 透明输入代理通过 `TextChanged` 接收键盘布局或输入法提交的文本，通过 `Paste` 接收剪贴板文本；代理文本提取后立即清空并交给串口发送，因此不会形成本地回显或重复发送。
 
 这一结构把“保存多少数据”和“屏幕同时绘制多少行”分开：滚动条覆盖完整活动会话，旧内容不会因视口容量消失，而 UI 元素数量主要由窗口高度决定。更详细的不变量和边界规则见 [虚拟化终端控件设计](docs/VIRTUAL_TERMINAL.md)。
 
@@ -256,6 +260,13 @@ SerialPort.DataReceived
 
 | 组件 | 职责 |
 | --- | --- |
+| `MainViewModel` | 聚合连接、终端、发送、快捷指令和循环发送 ViewModel |
+| `ConnectionViewModel` | 端口集合、连接状态以及串口服务协调 |
+| `TerminalViewModel` | 完整会话、流式解码和 RX/TX 计数 |
+| `TransmissionViewModel` | 向 UI 暴露纯发送引擎 |
+| `CommandPresetsViewModel` | 快捷指令集合、编辑和持久化协调 |
+| `RepeatSendViewModel` | 周期发送状态、后台写入和并发保护 |
+| `SerialPayloadEngine` | 文本转义、HEX、行尾和内容区输入的纯 C# 解释规则 |
 | `SerialPortService` | 枚举、打开、关闭、读取和写入串口 |
 | `StreamingTextDecoder` | 跨批次文本解码和无效字节替换 |
 | `TerminalBuffer` | 文本/HEX 格式和完整分段会话存储 |
@@ -266,19 +277,19 @@ SerialPort.DataReceived
 | `HighResolutionPeriodicTimer` | 使用 Windows 高分辨率等待计时器提供固定周期调度 |
 | `WindowIconManager` | 从唯一 ICO 创建标题栏图像，并按窗口 DPI 从当前 EXE 提取 Win32 窗口图标 |
 | `CommandPresetStorageService` | 快捷指令 JSON 读写 |
-| `Views/MainPage.SerialPort` | 串口状态、接收队列、发送与计数 |
-| `Views/MainPage.Terminal` | 内容区输入、日志、渲染、选择与滚动 |
-| `Views/MainPage.CommandPresets` | 快捷指令 UI 与持久化调用 |
+| `Views/MainPage.SerialPort` | 串口 UI 事件、接收队列与 DispatcherQueue 协调 |
+| `Views/MainPage.Terminal` | 日志选择器、终端渲染、选择与滚动协调 |
+| `Views/MainPage.CommandPresets` | 快捷指令控件事件与焦点处理 |
 | `MainWindow` | 窗口尺寸、标题栏和连接标题 |
 
 ## 代码组织与命名
 
-工程参考 [Files 的源码组织](https://github.com/files-community/Files/tree/main/src/Files.App) 与 [编码规范](https://files.community/docs/contributing/code-style)，采用按职责分层、类型名表达角色的组织方式。Comet 仍保持适合小型 WinUI 应用的轻量结构，不为目录对称而引入没有实际状态职责的 ViewModel 或额外抽象。
+工程参考 [Files 的源码组织](https://github.com/files-community/Files/tree/main/src) 与 [Windows Calculator 架构](https://github.com/microsoft/calculator/blob/main/docs/ApplicationArchitecture.md)，采用按职责分层、根 ViewModel 聚合功能 ViewModel、核心规则不依赖 UI 的组织方式。解决方案只拆分核心类库和 WinUI 应用两个 C# 产品项目，不照搬参考项目的语言和复杂项目数量。
 
 | 对象 | 约定 | 示例 |
 | --- | --- | --- |
 | 类型、属性、公开或私有方法 | PascalCase；名称说明职责或动作 | `SerialPortService`、`DrainReceiveQueue` |
-| 接口 | `I` + PascalCase | 后续接口应使用 `ISerialPortService` 形式 |
+| 接口 | `I` + PascalCase | `ISerialPortService`、`IPeriodicTimer` |
 | 私有字段 | `_camelCase` | `_serialPortService`、`_receiveQueue` |
 | 常量 | `UPPER_SNAKE_CASE` | `RECEIVE_DRAIN_MAX_BYTES` |
 | 布尔值 | 优先使用 `Is`、`Has`、`Can`、`Should` | `shouldShowErrors` |
@@ -286,7 +297,7 @@ SerialPort.DataReceived
 | 服务 | 以 `Service` 结尾 | `CommandPresetStorageService` |
 | 异步方法 | 以 `Async` 结尾 | 后续异步 API 应遵循该规则 |
 
-文件夹与命名空间保持一致，例如 `Views` 对应 `Comet.Views`，`Core/Terminal` 对应 `Comet.Core.Terminal`。文件名与其中的主类型保持一致，一个文件原则上只定义一个顶层类型。同一页面的 XAML 和 partial 文件放在 `Views` 中，按 `MainPage.SerialPort.cs`、`MainPage.Terminal.cs`、`MainPage.CommandPresets.cs` 拆分职责；拆分只用于控制文件规模，不改变它们属于同一页面类的事实。
+文件夹与命名空间保持一致，例如 `src/Comet/Views` 对应 `Comet.Views`，`src/Comet.Core/Transmission` 对应 `Comet.Core.Transmission`，`src/Comet.Core/ViewModels` 对应 `Comet.ViewModels`。文件名与其中的主类型保持一致，一个文件原则上只定义一个顶层类型。同一页面的 XAML 和 partial 文件放在 `Views` 中；这些文件只协调 WinUI 行为，状态与核心规则进入 `Comet.Core`。
 
 应用图标只有一个源文件 `Assets/CometTerminalIcon.ico`，其中包含从 16×16 到 256×256 的多级图像。构建时，它既由 `ApplicationIcon` 写入 EXE，也作为程序集资源供标题栏读取；运行时由 `WindowIconManager` 从同一资源创建 20×20 标题栏图像，并根据窗口 DPI 选择比系统基准大一档的任务栏/窗口图标帧，避免放大低分辨率图标，不依赖工作目录或发布目录中的外部图标文件。项目为 Unpackaged，不保留未启用的 MSIX 清单和模板 Logo。
 
@@ -311,7 +322,7 @@ SerialPort.DataReceived
 - 已有快捷指令只能直接修改名称和内容，不能直接修改模式与行尾。
 - 当前界面固定为浅色主题。
 - 默认窗口为 1280 × 820，最小建议尺寸为 1200 × 720。
-- 仓库当前没有自动化测试项目，串口功能依赖手工或设备回环验证。
+- 核心规则已有自动化测试；真实串口、驱动、Windows UI 和大数据吞吐仍依赖手工或设备回环验证。
 
 ## 项目结构
 
@@ -319,19 +330,26 @@ SerialPort.DataReceived
 Comet/
 ├─ docs/
 │  ├─ ENVIRONMENT.md               环境安装、构建与发布
+│  ├─ ARCHITECTURE.md              分层、依赖方向与重构边界
 │  ├─ TESTING.md                   测试方法与验收标准
 │  └─ VIRTUAL_TERMINAL.md          虚拟化终端实现与维护约束
-├─ src/Comet/
-│  ├─ Assets/                      唯一应用 ICO（编译时嵌入 EXE）
-│  ├─ Converters/                  UI 选项与领域值转换
-│  ├─ Controls/                    虚拟化终端及行呈现器
-│  ├─ Core/Terminal/               双视图会话与虚拟行文档
-│  ├─ Helpers/                     编码、转义、HEX 与窗口辅助逻辑
-│  ├─ Models/                      终端、预设和端口模型
-│  ├─ Properties/PublishProfiles/  x86、x64、ARM64 发布配置
-│  ├─ Services/                    串口与预设持久化服务
-│  ├─ Views/                       窗口、页面与页面 partial 文件
-│  └─ Comet.csproj                 框架、依赖和发布属性
+├─ src/
+│  ├─ Comet.Core/                  纯 C# 核心类库（不依赖 WinUI）
+│  │  ├─ Models/                   终端、预设和端口模型
+│  │  ├─ Services/                 串口、存储和计时器契约
+│  │  ├─ Terminal/                 双视图会话与虚拟行文档
+│  │  ├─ Text/                     编码、转义和 HEX 规则
+│  │  ├─ Transmission/             发送数据解释引擎
+│  │  └─ ViewModels/               根 ViewModel 与功能 ViewModel
+│  └─ Comet/                       WinUI 3 应用
+│     ├─ Assets/                   唯一应用 ICO（编译时嵌入 EXE）
+│     ├─ Converters/               UI 选项与领域值转换
+│     ├─ Controls/                 虚拟化终端及行呈现器
+│     ├─ Services/                 Windows 串口、存储与计时器实现
+│     ├─ Views/                    XAML、窗口和 WinUI 交互协调
+│     ├─ Windowing/                标题栏与任务栏图标集成
+│     └─ Comet.csproj              WinUI、依赖和发布属性
+├─ tests/Comet.Tests/              核心与 ViewModel 回归测试
 ├─ .editorconfig                   编辑格式与 C# 命名规则
 ├─ .gitignore                      版本控制忽略规则
 └─ Comet.sln                       Visual Studio 解决方案
@@ -340,6 +358,7 @@ Comet/
 ## 开发文档
 
 - [环境安装、构建与发布](docs/ENVIRONMENT.md)
+- [软件架构与依赖规则](docs/ARCHITECTURE.md)
 - [测试方法与验收标准](docs/TESTING.md)
 - [虚拟化终端控件设计](docs/VIRTUAL_TERMINAL.md)
 
@@ -349,7 +368,9 @@ Comet/
 | --- | --- |
 | 语言 | C# |
 | 运行时 | .NET 10 |
+| 核心 | `Comet.Core` 纯 C# 类库，不依赖 WinUI |
 | UI | WinUI 3 / Windows App SDK 2.4 |
+| 测试 | MSTest 4.1 / Microsoft Testing Platform |
 | 串口 | `System.IO.Ports` 10.0.11 |
 | Windows SDK Build Tools | 10.0.26100.7705 |
 | 最低 Windows | Windows 10 1809 / build 17763 |
@@ -358,4 +379,4 @@ Comet/
 
 ## 许可
 
-当前仓库尚未包含开源许可证。公开分发或接受外部贡献前，应先添加适合项目的 `LICENSE` 文件。
+仓库包含 MIT `LICENSE` 模板；正式公开发布前需要填写其中的年份与版权持有人。

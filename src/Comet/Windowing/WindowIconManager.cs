@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System.Runtime.InteropServices;
 
-namespace Comet.Helpers;
+namespace Comet.Windowing;
 
 internal sealed class WindowIconManager : IDisposable
 {

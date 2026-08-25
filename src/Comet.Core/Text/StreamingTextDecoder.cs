@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Comet.Helpers;
+namespace Comet.Core.Text;
 
 /// <summary>
 /// Preserves decoder state across arbitrary serial chunks. Bytes that cannot be

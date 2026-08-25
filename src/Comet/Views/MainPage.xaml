@@ -40,7 +40,8 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <ComboBox x:Name="PortComboBox" HorizontalAlignment="Stretch" Header="串口"
-                                          DisplayMemberPath="DisplayName" />
+                                          DisplayMemberPath="DisplayName"
+                                          ItemsSource="{x:Bind ViewModel.Connection.Ports, Mode=OneWay}" />
                                 <Button Grid.Column="1" Width="40" Height="34" Padding="0" Margin="0,24,0,0"
                                         Click="RefreshPortsButton_Click" ToolTipService.ToolTip="刷新串口">
                                     <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="15" Glyph="&#xE72C;" />
@@ -263,6 +264,7 @@
 
                             <Grid Grid.Row="2" Margin="0,0,-8,0">
                                 <ListView x:Name="PresetList" Padding="0,0,16,0" Background="Transparent"
+                                          ItemsSource="{x:Bind ViewModel.CommandPresets.Items, Mode=OneWay}"
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                           ScrollViewer.VerticalScrollBarVisibility="Visible"
                                           ScrollViewer.VerticalScrollMode="Enabled"

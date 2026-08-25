@@ -1,3 +1,6 @@
+using Comet.Services;
+using Comet.Services.Timing;
+using Comet.ViewModels;
 using Comet.Views;
 using Microsoft.UI.Xaml;
 
@@ -16,7 +19,13 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _window = new MainWindow();
+        // App is the composition root: only this layer selects concrete Windows
+        // services before injecting the UI-independent root view model.
+        var viewModel = new MainViewModel(
+            new SerialPortService(),
+            new CommandPresetStorageService(),
+            callback => new HighResolutionPeriodicTimer(callback));
+        _window = new MainWindow(viewModel);
         _window.Activate();
     }
 }

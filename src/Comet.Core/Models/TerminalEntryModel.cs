@@ -1,5 +1,8 @@
 namespace Comet.Models;
 
+/// <summary>
+/// Represents one logical terminal update before text and HEX display formatting.
+/// </summary>
 public sealed class TerminalEntryModel
 {
     public required string Time { get; init; }

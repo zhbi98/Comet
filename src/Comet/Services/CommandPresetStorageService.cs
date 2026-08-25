@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Comet.Models;
+using Comet.Services.Abstractions;
 
 namespace Comet.Services;
 
@@ -7,7 +8,7 @@ namespace Comet.Services;
 /// Persists user-defined command presets as JSON in the current user's local
 /// application-data directory.
 /// </summary>
-public static class CommandPresetStorageService
+public sealed class CommandPresetStorageService : ICommandPresetStorageService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -22,7 +23,7 @@ public static class CommandPresetStorageService
 
     private static readonly string StorePath = Path.Combine(StoreDirectory, "presets.json");
 
-    public static IReadOnlyList<CommandPresetModel> LoadPresets()
+    public IReadOnlyList<CommandPresetModel> LoadPresets()
     {
         try
         {
@@ -43,7 +44,7 @@ public static class CommandPresetStorageService
         }
     }
 
-    public static void SavePresets(IEnumerable<CommandPresetModel> presets)
+    public void SavePresets(IEnumerable<CommandPresetModel> presets)
     {
         Directory.CreateDirectory(StoreDirectory);
         var json = JsonSerializer.Serialize(presets, JsonOptions);
