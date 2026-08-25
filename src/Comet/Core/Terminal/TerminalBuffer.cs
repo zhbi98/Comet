@@ -5,12 +5,12 @@ using Comet.Models;
 namespace Comet.Core.Terminal;
 
 /// <summary>
-/// Owns synchronized text and HEX segmented ring buffers for terminal content.
+/// Owns synchronized, complete text and HEX formatted terminal sessions.
 /// </summary>
-internal sealed class TerminalBuffer(int maxCharacters)
+internal sealed class TerminalBuffer
 {
-    private readonly DisplayState _textDisplay = new(maxCharacters);
-    private readonly DisplayState _hexDisplay = new(maxCharacters);
+    private readonly DisplayState _textDisplay = new();
+    private readonly DisplayState _hexDisplay = new();
     private bool _isReceiveDisplayedAsHex;
 
     private DisplayState CurrentDisplay => _isReceiveDisplayedAsHex ? _hexDisplay : _textDisplay;
@@ -19,7 +19,11 @@ internal sealed class TerminalBuffer(int maxCharacters)
 
     public int CurrentLength => CurrentDisplay.Length;
 
+    public int SessionLength => CurrentDisplay.Length;
+
     public string GetText() => CurrentDisplay.GetText();
+
+    public string GetSessionText() => CurrentDisplay.GetText();
 
     public TerminalBufferUpdate Append(TerminalEntryModel entry, bool shouldIncludeInDisplay, bool isReceiveDisplayedAsHex)
     {
@@ -42,20 +46,20 @@ internal sealed class TerminalBuffer(int maxCharacters)
         _hexDisplay.Clear();
     }
 
-    private sealed class DisplayState(int maxCharacters)
+    private sealed class DisplayState
     {
-        private readonly SegmentedTextRing _text = new();
+        private readonly SegmentedTextStore _sessionText = new();
         private bool _hasDisplayedEntry;
         private bool _lastEntryWasDetailed;
         private bool _lastEntryWasHex;
         private string? _lastDetailedDirection;
         private bool _previousRxTextEndedWithCarriageReturn;
 
-        public bool IsEmpty => _text.Length == 0;
+        public bool IsEmpty => _sessionText.Length == 0;
 
-        public int Length => _text.Length;
+        public int Length => _sessionText.Length;
 
-        public string GetText() => _text.GetText();
+        public string GetText() => _sessionText.GetText();
 
         public TerminalBufferUpdate Append(TerminalEntryModel entry, bool isReceiveDisplayedAsHex)
         {
@@ -83,8 +87,8 @@ internal sealed class TerminalBuffer(int maxCharacters)
                      entry.Direction == "RX" &&
                      _lastEntryWasHex == isDisplayedAsHex)
             {
-                // Serial receive events are arbitrary transport chunks, not lines.
-                // Consecutive RX chunks must remain a single continuous stream.
+                // Transport chunks are not terminal lines. Consecutive RX chunks
+                // remain one stream until the direction or display mode changes.
                 AppendHexSeparatorIfNeeded(appended, displayText, isDisplayedAsHex);
                 appended.Append(displayText);
             }
@@ -99,18 +103,14 @@ internal sealed class TerminalBuffer(int maxCharacters)
             _lastEntryWasHex = isDisplayedAsHex;
             _lastDetailedDirection = entry.IsDetailed ? entry.Direction : null;
             var appendedText = appended.ToString();
-            _text.Append(appendedText);
-            var removedPrefixLength = TrimToCapacity(isReceiveDisplayedAsHex);
+            _sessionText.Append(appendedText);
 
-            return new TerminalBufferUpdate(
-                true,
-                removedPrefixLength,
-                appendedText);
+            return new TerminalBufferUpdate(true, appendedText);
         }
 
         public void Clear()
         {
-            _text.Clear();
+            _sessionText.Clear();
             _hasDisplayedEntry = false;
             _lastEntryWasDetailed = false;
             _lastEntryWasHex = false;
@@ -124,23 +124,22 @@ internal sealed class TerminalBuffer(int maxCharacters)
             {
                 return isReceiveDisplayedAsHex
                     ? HexCodec.Format(entry.RawBytes)
-                    : NormalizeTextBoxText(entry.Text, ref _previousRxTextEndedWithCarriageReturn);
+                    : NormalizeTerminalText(entry.Text, ref _previousRxTextEndedWithCarriageReturn);
             }
 
             var previousWasCarriageReturn = false;
-            return NormalizeTextBoxText(entry.Text, ref previousWasCarriageReturn);
+            return NormalizeTerminalText(entry.Text, ref previousWasCarriageReturn);
         }
 
-        private static string NormalizeTextBoxText(string text, ref bool previousWasCarriageReturn)
+        private static string NormalizeTerminalText(string text, ref bool previousWasCarriageReturn)
         {
             if (text.Length == 0)
             {
                 return string.Empty;
             }
 
-            // WinUI TextBox terminates inserted text at NUL and normalizes all line
-            // endings to CR. Canonicalize before buffering so ring offsets always
-            // match the characters actually retained by the control.
+            // Keep one canonical line-break character and render non-layout C0
+            // controls as visible glyphs so logical positions stay stable.
             var normalized = new StringBuilder(text.Length);
             foreach (var character in text)
             {
@@ -186,6 +185,7 @@ internal sealed class TerminalBuffer(int maxCharacters)
                 {
                     normalized.Append(character);
                 }
+
                 previousWasCarriageReturn = false;
             }
 
@@ -200,12 +200,12 @@ internal sealed class TerminalBuffer(int maxCharacters)
         private void AppendHexSeparatorIfNeeded(StringBuilder appended, string displayText, bool isDisplayedAsHex)
         {
             if (!isDisplayedAsHex || !_lastEntryWasHex ||
-                _text.Length + appended.Length == 0 || displayText.Length == 0)
+                _sessionText.Length + appended.Length == 0 || displayText.Length == 0)
             {
                 return;
             }
 
-            var lastCharacter = appended.Length > 0 ? appended[^1] : _text.LastCharacter;
+            var lastCharacter = appended.Length > 0 ? appended[^1] : _sessionText.LastCharacter;
             if (!char.IsWhiteSpace(lastCharacter) && !char.IsWhiteSpace(displayText[0]))
             {
                 appended.Append(' ');
@@ -214,89 +214,31 @@ internal sealed class TerminalBuffer(int maxCharacters)
 
         private void EnsureLineBoundary(StringBuilder appended)
         {
-            if (_text.Length + appended.Length == 0)
+            if (_sessionText.Length + appended.Length == 0)
             {
                 return;
             }
 
-            var lastCharacter = appended.Length > 0 ? appended[^1] : _text.LastCharacter;
+            var lastCharacter = appended.Length > 0 ? appended[^1] : _sessionText.LastCharacter;
             if (lastCharacter is not '\r' and not '\n')
             {
                 appended.AppendLine();
             }
         }
-
-        private int TrimToCapacity(bool isReceiveDisplayedAsHex)
-        {
-            if (_text.Length <= maxCharacters)
-            {
-                return 0;
-            }
-
-            // Keep the visible amount stable at the rolling limit. The previous
-            // headroom trim removed roughly 12.5% at once and forced a full TextBox
-            // reset, which looked like data loss and reset the scroll layout.
-            var removeCount = _text.Length - maxCharacters;
-            var lastRemovedCharacter = _text.RemovePrefix(removeCount);
-            if (isReceiveDisplayedAsHex)
-            {
-                // Move by at most one byte token so HEX never starts halfway
-                // through a two-digit value.
-                if (lastRemovedCharacter is not null && !char.IsWhiteSpace(lastRemovedCharacter.Value))
-                {
-                    while (!_text.IsEmpty && !char.IsWhiteSpace(_text.FirstCharacter))
-                    {
-                        _text.RemovePrefix(1);
-                        removeCount++;
-                    }
-                }
-
-                while (!_text.IsEmpty && char.IsWhiteSpace(_text.FirstCharacter))
-                {
-                    _text.RemovePrefix(1);
-                    removeCount++;
-                }
-            }
-            else if (!_text.IsEmpty && char.IsLowSurrogate(_text.FirstCharacter))
-            {
-                _text.RemovePrefix(1);
-                removeCount++;
-            }
-
-            return removeCount;
-        }
     }
 
     /// <summary>
-    /// A FIFO of immutable text segments. Prefix trimming advances the first
-    /// segment offset or unlinks complete segments, so it never moves the
-    /// remaining million-character payload.
+    /// Stores immutable append segments without copying the existing session.
+    /// Materialization only happens for export or a display-mode switch.
     /// </summary>
-    private sealed class SegmentedTextRing
+    private sealed class SegmentedTextStore
     {
-        private readonly LinkedList<Segment> _segments = [];
-
-        public bool IsEmpty => Length == 0;
+        private readonly LinkedList<string> _segments = [];
 
         public int Length { get; private set; }
 
-        public char FirstCharacter
-        {
-            get
-            {
-                var first = _segments.First?.Value ?? throw new InvalidOperationException("The ring is empty.");
-                return first.Text[first.Offset];
-            }
-        }
-
-        public char LastCharacter
-        {
-            get
-            {
-                var last = _segments.Last?.Value ?? throw new InvalidOperationException("The ring is empty.");
-                return last.Text[^1];
-            }
-        }
+        public char LastCharacter => _segments.Last?.Value[^1]
+            ?? throw new InvalidOperationException("The session is empty.");
 
         public void Append(string text)
         {
@@ -305,37 +247,8 @@ internal sealed class TerminalBuffer(int maxCharacters)
                 return;
             }
 
-            _segments.AddLast(new Segment(text));
+            _segments.AddLast(text);
             Length += text.Length;
-        }
-
-        public char? RemovePrefix(int count)
-        {
-            if (count <= 0 || Length == 0)
-            {
-                return null;
-            }
-
-            count = Math.Min(count, Length);
-            char? lastRemovedCharacter = null;
-            while (count > 0)
-            {
-                var node = _segments.First!;
-                var segment = node.Value;
-                var available = segment.Text.Length - segment.Offset;
-                var removeFromSegment = Math.Min(count, available);
-                lastRemovedCharacter = segment.Text[segment.Offset + removeFromSegment - 1];
-                segment.Offset += removeFromSegment;
-                Length -= removeFromSegment;
-                count -= removeFromSegment;
-
-                if (segment.Offset == segment.Text.Length)
-                {
-                    _segments.RemoveFirst();
-                }
-            }
-
-            return lastRemovedCharacter;
         }
 
         public string GetText()
@@ -348,7 +261,7 @@ internal sealed class TerminalBuffer(int maxCharacters)
             var builder = new StringBuilder(Length);
             foreach (var segment in _segments)
             {
-                builder.Append(segment.Text.AsSpan(segment.Offset));
+                builder.Append(segment);
             }
 
             return builder.ToString();
@@ -358,13 +271,6 @@ internal sealed class TerminalBuffer(int maxCharacters)
         {
             _segments.Clear();
             Length = 0;
-        }
-
-        private sealed class Segment(string text)
-        {
-            public string Text { get; } = text;
-
-            public int Offset { get; set; }
         }
     }
 }

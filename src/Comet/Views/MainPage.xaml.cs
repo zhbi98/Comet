@@ -14,11 +14,6 @@ namespace Comet.Views;
 
 public sealed partial class MainPage : Page
 {
-    // WinUI TextBox reflows the complete wrapped document after prefix edits.
-    // A 100k rolling viewport keeps binary streams interactive while the RX
-    // counter continues to track the complete session byte total.
-    private const int MAX_TERMINAL_CHARACTERS = 100_000;
-
     private readonly SerialPortService _serialPortService = new();
     private readonly TerminalBuffer _terminalBuffer;
     private readonly StreamingTextDecoder _receiveTextDecoder = new();
@@ -33,10 +28,7 @@ public sealed partial class MainPage : Page
     private long _totalSentBytes;
     private int _receiveDrainScheduled;
     private readonly StringBuilder _pendingTerminalText = new();
-    private int _pendingTerminalPrefixRemoval;
-    private bool _isUpdatingTerminalText;
     private bool _isTerminalRenderPending;
-    private bool _isTerminalScrollPending;
     private bool _isUnloaded;
     private PreparedSerialPayload? _repeatSendPayload;
     private int _repeatSendEnabled;
@@ -49,7 +41,7 @@ public sealed partial class MainPage : Page
         InitializeComponent();
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
-        _terminalBuffer = new TerminalBuffer(MAX_TERMINAL_CHARACTERS);
+        _terminalBuffer = new TerminalBuffer();
         _receiveQueue = new ConcurrentQueue<SerialBytesReceivedEventArgs>();
 
         _repeatSendTimer = new HighResolutionPeriodicTimer(RepeatTimer_Tick);
@@ -62,7 +54,16 @@ public sealed partial class MainPage : Page
         _terminalRenderTimer.IsRepeating = false;
         _terminalRenderTimer.Tick += TerminalRenderTimer_Tick;
 
-        TerminalTextBox.BeforeTextChanging += TerminalTextBox_BeforeTextChanging;
+        TerminalView.InputReceived += (_, args) => SendTerminalInput(args.Text);
+        TerminalView.ViewportChanged += (_, _) => UpdateTerminalItemStatus();
+        AutoScrollCheckBox.Click += (_, _) =>
+        {
+            TerminalView.AutoScroll = AutoScrollCheckBox.IsChecked == true;
+            if (TerminalView.AutoScroll)
+            {
+                TerminalView.ScrollToEnd();
+            }
+        };
         _serialPortService.BytesReceived += SerialPort_BytesReceived;
         _serialPortService.ErrorOccurred += SerialPort_ErrorOccurred;
 

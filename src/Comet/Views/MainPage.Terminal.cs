@@ -1,8 +1,8 @@
 using Comet.Models;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 
@@ -14,10 +14,9 @@ public sealed partial class MainPage
     {
         _terminalRenderTimer.Stop();
         _isTerminalRenderPending = false;
-        _pendingTerminalPrefixRemoval = 0;
         _pendingTerminalText.Clear();
         _terminalBuffer.Clear();
-        ReplaceTerminalText(string.Empty, shouldPreserveSelection: false);
+        TerminalView.Clear();
         _totalReceivedBytes = 0;
         _totalSentBytes = 0;
         EmptyTerminalPanel.Visibility = Visibility.Visible;
@@ -29,51 +28,13 @@ public sealed partial class MainPage
     {
         _terminalRenderTimer.Stop();
         _isTerminalRenderPending = false;
-        _pendingTerminalPrefixRemoval = 0;
         _pendingTerminalText.Clear();
         _terminalBuffer.SetReceiveAsHex(ReceiveHexCheckBox.IsChecked == true);
-        var shouldPreserveSelection = TerminalTextBox.SelectionLength > 0 || AutoScrollCheckBox.IsChecked != true;
-        ReplaceTerminalText(_terminalBuffer.GetText(), shouldPreserveSelection);
+        TerminalView.SetText(
+            _terminalBuffer.GetSessionText(),
+            AutoScrollCheckBox.IsChecked == true);
         EmptyTerminalPanel.Visibility = _terminalBuffer.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
         UpdateTerminalItemStatus();
-    }
-
-    private void TerminalTextBox_BeforeTextChanging(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
-    {
-        if (_isUpdatingTerminalText)
-        {
-            return;
-        }
-
-        var insertedText = GetInsertedText(sender.Text, args.NewText);
-        args.Cancel = true;
-        if (insertedText.Length > 0)
-        {
-            SendTerminalInput(insertedText);
-        }
-    }
-
-    private static string GetInsertedText(string previousText, string currentText)
-    {
-        var prefixLength = 0;
-        var sharedLength = Math.Min(previousText.Length, currentText.Length);
-        while (prefixLength < sharedLength && previousText[prefixLength] == currentText[prefixLength])
-        {
-            prefixLength++;
-        }
-
-        var suffixLength = 0;
-        while (suffixLength < previousText.Length - prefixLength &&
-               suffixLength < currentText.Length - prefixLength &&
-               previousText[^(suffixLength + 1)] == currentText[^(suffixLength + 1)])
-        {
-            suffixLength++;
-        }
-
-        var insertedLength = currentText.Length - prefixLength - suffixLength;
-        return insertedLength > 0
-            ? currentText.Substring(prefixLength, insertedLength)
-            : string.Empty;
     }
 
     private void SendTerminalInput(string text)
@@ -105,8 +66,7 @@ public sealed partial class MainPage
 
     private async void SaveLogButton_Click(object sender, RoutedEventArgs e)
     {
-        var logText = _terminalBuffer.GetText();
-        if (string.IsNullOrEmpty(logText))
+        if (_terminalBuffer.SessionLength == 0)
         {
             ShowMessage("没有可保存的内容", "终端日志目前为空。", InfoBarSeverity.Informational);
             return;
@@ -135,6 +95,7 @@ public sealed partial class MainPage
                 return;
             }
 
+            var logText = _terminalBuffer.GetSessionText();
             await FileIO.WriteTextAsync(file, logText, Windows.Storage.Streams.UnicodeEncoding.Utf8);
             ShowMessage("日志已保存", file.Path, InfoBarSeverity.Success);
         }
@@ -169,29 +130,9 @@ public sealed partial class MainPage
             return;
         }
 
-        var remainingRemoval = update.RemovedPrefixLength;
-        if (remainingRemoval > 0)
-        {
-            var visibleAvailable = Math.Max(0, TerminalTextBox.Text.Length - _pendingTerminalPrefixRemoval);
-            var removeFromVisible = Math.Min(remainingRemoval, visibleAvailable);
-            _pendingTerminalPrefixRemoval += removeFromVisible;
-            remainingRemoval -= removeFromVisible;
-
-            if (remainingRemoval > 0 && _pendingTerminalText.Length > 0)
-            {
-                var removeFromPending = Math.Min(remainingRemoval, _pendingTerminalText.Length);
-                _pendingTerminalText.Remove(0, removeFromPending);
-                remainingRemoval -= removeFromPending;
-            }
-        }
-
-        if (remainingRemoval < update.AppendedText.Length)
-        {
-            _pendingTerminalText.Append(update.AppendedText, remainingRemoval, update.AppendedText.Length - remainingRemoval);
-        }
-
+        _pendingTerminalText.Append(update.AppendedText);
         ScheduleTerminalRender();
-        EmptyTerminalPanel.Visibility = _terminalBuffer.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+        EmptyTerminalPanel.Visibility = Visibility.Collapsed;
     }
 
     private void ScheduleTerminalRender()
@@ -201,11 +142,11 @@ public sealed partial class MainPage
             return;
         }
 
-        _terminalRenderTimer.Interval = TimeSpan.FromMilliseconds(_terminalBuffer.CurrentLength switch
+        _terminalRenderTimer.Interval = TimeSpan.FromMilliseconds(_pendingTerminalText.Length switch
         {
-            < 25_000 => 50,
-            < 75_000 => 100,
-            _ => 250
+            < 25_000 => 33,
+            < 250_000 => 50,
+            _ => 100
         });
         _isTerminalRenderPending = true;
         _terminalRenderTimer.Start();
@@ -216,168 +157,38 @@ public sealed partial class MainPage
         _isTerminalRenderPending = false;
         if (_isUnloaded)
         {
-            _pendingTerminalPrefixRemoval = 0;
             _pendingTerminalText.Clear();
             return;
         }
 
         UpdateTransferCounters();
-        var shouldPreserveSelection = TerminalTextBox.SelectionLength > 0 || AutoScrollCheckBox.IsChecked != true;
-        var removedPrefixLength = _pendingTerminalPrefixRemoval;
-        _pendingTerminalPrefixRemoval = 0;
-        var appendedText = _pendingTerminalText.ToString();
-        _pendingTerminalText.Clear();
-        if (removedPrefixLength > 0 || appendedText.Length > 0)
+        if (_pendingTerminalText.Length > 0)
         {
-            ApplyTerminalDelta(removedPrefixLength, appendedText, shouldPreserveSelection);
+            var appendedText = _pendingTerminalText.ToString();
+            _pendingTerminalText.Clear();
+            TerminalView.AutoScroll = AutoScrollCheckBox.IsChecked == true;
+            TerminalView.AppendText(appendedText);
         }
 
         UpdateTerminalItemStatus();
     }
 
-    private void UpdateTerminalItemStatus() =>
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetItemStatus(
-            TerminalTextBox,
-            $"可见 {_terminalBuffer.CurrentLength:N0} / {MAX_TERMINAL_CHARACTERS:N0} 字符");
-
-    private void ReplaceTerminalText(string text, bool shouldPreserveSelection)
+    private void UpdateTerminalItemStatus()
     {
-        var selectionStart = TerminalTextBox.SelectionStart;
-        var selectionLength = TerminalTextBox.SelectionLength;
-        _isUpdatingTerminalText = true;
-        try
+        string status;
+        if (TerminalView.CharacterCount == 0)
         {
-            TerminalTextBox.Text = text;
-            if (shouldPreserveSelection)
-            {
-                var safeStart = Math.Min(selectionStart, text.Length);
-                var safeLength = Math.Min(selectionLength, text.Length - safeStart);
-                TerminalTextBox.Select(safeStart, safeLength);
-            }
-            else
-            {
-                TerminalTextBox.Select(text.Length, 0);
-            }
+            status = "行 0 / 0 · 会话 0";
         }
-        finally
+        else
         {
-            _isUpdatingTerminalText = false;
+            var (first, last) = TerminalView.GetVisibleLineRange();
+            status = $"行 {first + 1:N0}-{last + 1:N0} / {TerminalView.LineCount:N0} · 会话 {_terminalBuffer.SessionLength:N0}";
         }
 
-        if (!shouldPreserveSelection)
-        {
-            QueueScrollTerminalToEnd();
-        }
-    }
-
-    private void ApplyTerminalDelta(int removedPrefixLength, string appendedText, bool shouldPreserveSelection)
-    {
-        var selectionStart = TerminalTextBox.SelectionStart;
-        var selectionLength = TerminalTextBox.SelectionLength;
-        var shouldRestoreReadOnly = TerminalTextBox.IsReadOnly;
-        _isUpdatingTerminalText = true;
-        try
-        {
-            // SelectedText is the only incremental mutation API exposed by the
-            // WinUI TextBox, but it throws UnauthorizedAccessException while the
-            // control is read-only. A render queued just before disconnect can run
-            // after UpdateConnectionState marks the terminal read-only, so temporarily
-            // allow this programmatic mutation. The UI thread cannot process user
-            // input until this synchronous block has restored the original state.
-            if (shouldRestoreReadOnly)
-            {
-                TerminalTextBox.IsReadOnly = false;
-            }
-
-            var safeRemoveCount = Math.Min(removedPrefixLength, TerminalTextBox.Text.Length);
-            if (safeRemoveCount > 0)
-            {
-                TerminalTextBox.Select(0, safeRemoveCount);
-                TerminalTextBox.SelectedText = string.Empty;
-            }
-
-            TerminalTextBox.Select(TerminalTextBox.Text.Length, 0);
-            if (appendedText.Length > 0)
-            {
-                TerminalTextBox.SelectedText = appendedText;
-            }
-
-            if (shouldPreserveSelection)
-            {
-                var textLength = TerminalTextBox.Text.Length;
-                var originalSelectionEnd = selectionStart + selectionLength;
-                var safeStart = Math.Min(Math.Max(0, selectionStart - safeRemoveCount), textLength);
-                var safeEnd = Math.Min(Math.Max(0, originalSelectionEnd - safeRemoveCount), textLength);
-                var safeLength = Math.Max(0, safeEnd - safeStart);
-                TerminalTextBox.Select(safeStart, safeLength);
-            }
-            else
-            {
-                TerminalTextBox.Select(TerminalTextBox.Text.Length, 0);
-            }
-        }
-        finally
-        {
-            if (shouldRestoreReadOnly)
-            {
-                TerminalTextBox.IsReadOnly = true;
-            }
-
-            _isUpdatingTerminalText = false;
-        }
-
-        if (!shouldPreserveSelection)
-        {
-            QueueScrollTerminalToEnd();
-        }
-    }
-
-    private void QueueScrollTerminalToEnd()
-    {
-        if (_isTerminalScrollPending)
-        {
-            return;
-        }
-
-        _isTerminalScrollPending = true;
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
-        {
-            _isTerminalScrollPending = false;
-            if (!_isUnloaded)
-            {
-                ScrollTerminalToEnd();
-            }
-        });
-    }
-
-    private void ScrollTerminalToEnd()
-    {
-        var scrollViewer = FindVisualDescendant<ScrollViewer>(TerminalTextBox);
-        scrollViewer?.ChangeView(
-            0,
-            scrollViewer.ScrollableHeight,
-            null,
-            disableAnimation: true);
-    }
-
-    private static T? FindVisualDescendant<T>(DependencyObject root) where T : DependencyObject
-    {
-        var childCount = VisualTreeHelper.GetChildrenCount(root);
-        for (var index = 0; index < childCount; index++)
-        {
-            var child = VisualTreeHelper.GetChild(root, index);
-            if (child is T match)
-            {
-                return match;
-            }
-
-            var descendant = FindVisualDescendant<T>(child);
-            if (descendant is not null)
-            {
-                return descendant;
-            }
-        }
-
-        return null;
+        TerminalBufferStatusText.Text = status;
+        AutomationProperties.SetItemStatus(
+            TerminalView,
+            $"{status} 字符；内容区按可见行虚拟化显示完整会话");
     }
 }

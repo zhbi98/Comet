@@ -433,9 +433,9 @@ public sealed partial class MainPage
         SettingsPanel.IsHitTestVisible = !isOpen;
         SettingsPanel.Opacity = isOpen ? 0.55 : 1;
         SendButton.IsEnabled = isOpen;
-        TerminalTextBox.IsReadOnly = !isOpen;
+        TerminalView.IsInputEnabled = isOpen;
         ToolTipService.SetToolTip(
-            TerminalTextBox,
+            TerminalView,
             isOpen ? "键入内容将同步发送到串口；内容仅显示设备 RX 回传。" : "连接串口后可在内容区键入发送；当前仍可选择和复制内容。");
         FooterConnectionText.Text = isOpen ? $"{_serialPortService.PortName} · 通信中" : "未连接";
         if (App.CurrentWindow is MainWindow window)

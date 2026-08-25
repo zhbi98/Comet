@@ -3,6 +3,7 @@
     x:Class="Comet.Views.MainPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Comet.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     Loaded="Page_Loaded"
@@ -132,23 +133,12 @@
 
                     <Border Grid.Row="1" BorderBrush="{StaticResource CometTerminalBorderBrush}" BorderThickness="0,1,0,1">
                         <Grid>
-                            <TextBox x:Name="TerminalTextBox" Padding="16,10"
-                                     AutomationProperties.Name="终端内容"
-                                     Background="Transparent" BorderThickness="0"
-                                     AcceptsReturn="True"
-                                     FontFamily="Cascadia Mono" FontSize="13"
-                                     Foreground="{StaticResource CometTerminalTextBrush}"
-                                     TextWrapping="Wrap"
-                                     VerticalAlignment="Stretch" VerticalContentAlignment="Top"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     ScrollViewer.VerticalScrollBarVisibility="Visible">
-                                <TextBox.Resources>
-                                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
-                                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
-                                    <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
-                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
-                                </TextBox.Resources>
-                            </TextBox>
+                                <controls:VirtualTerminalControl x:Name="TerminalView"
+                                                                 AutomationProperties.AutomationId="TerminalTextBox"
+                                                                 AutomationProperties.Name="终端内容"
+                                                             Background="Transparent"
+                                                             FontFamily="Cascadia Mono" FontSize="13"
+                                                             Foreground="{StaticResource CometTerminalTextBrush}" />
 
                             <StackPanel x:Name="EmptyTerminalPanel" HorizontalAlignment="Center"
                                         VerticalAlignment="Center" IsHitTestVisible="False" Spacing="8">
@@ -374,9 +364,9 @@
                 <TextBlock x:Name="SendCountText" VerticalAlignment="Center"
                            FontFamily="Cascadia Mono" FontSize="11" Text="TX  0 B" />
             </StackPanel>
-            <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="11"
+            <TextBlock x:Name="TerminalBufferStatusText" Grid.Column="1" VerticalAlignment="Center" FontSize="11"
                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                       Text="Comet 1.0 • Ready" />
+                       Text="显示 0 / 会话 0" />
         </Grid>
 
         <InfoBar x:Name="MessageBar" Grid.Row="0" Margin="310,12,18,0"
