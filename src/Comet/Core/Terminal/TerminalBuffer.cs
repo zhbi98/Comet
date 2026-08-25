@@ -33,6 +33,8 @@ internal sealed class TerminalBuffer
             return TerminalBufferUpdate.None;
         }
 
+        // Build both views at receive time so switching display modes never needs the
+        // original byte batches or a conversion from the currently visible document.
         var textUpdate = _textDisplay.Append(entry, isReceiveDisplayedAsHex: false);
         var hexUpdate = _hexDisplay.Append(entry, isReceiveDisplayedAsHex: true);
         return isReceiveDisplayedAsHex ? hexUpdate : textUpdate;
@@ -49,6 +51,8 @@ internal sealed class TerminalBuffer
     private sealed class DisplayState
     {
         private readonly SegmentedTextStore _sessionText = new();
+        // Formatting state spans transport batches because one terminal line may arrive
+        // through several DataReceived callbacks.
         private bool _hasDisplayedEntry;
         private bool _lastEntryWasDetailed;
         private bool _lastEntryWasHex;
@@ -139,7 +143,8 @@ internal sealed class TerminalBuffer
             }
 
             // Keep one canonical line-break character and render non-layout C0
-            // controls as visible glyphs so logical positions stay stable.
+            // controls as visible glyphs so logical positions stay stable. The CR
+            // state is carried across calls because CRLF may be split between batches.
             var normalized = new StringBuilder(text.Length);
             foreach (var character in text)
             {
@@ -205,6 +210,8 @@ internal sealed class TerminalBuffer
                 return;
             }
 
+            // Consecutive byte batches must remain tokenized as "AA BB", even though
+            // their formatting is produced by separate Append calls.
             var lastCharacter = appended.Length > 0 ? appended[^1] : _sessionText.LastCharacter;
             if (!char.IsWhiteSpace(lastCharacter) && !char.IsWhiteSpace(displayText[0]))
             {
@@ -258,6 +265,8 @@ internal sealed class TerminalBuffer
                 return string.Empty;
             }
 
+            // Full materialization is intentionally limited to display-mode switches
+            // and log export; ordinary appends never copy the existing session.
             var builder = new StringBuilder(Length);
             foreach (var segment in _segments)
             {

@@ -11,6 +11,10 @@ using Windows.UI.Core;
 
 namespace Comet.Controls;
 
+/// <summary>
+/// Presents a continuous terminal document while realizing only the rows near the viewport.
+/// Selection, caret, and scroll positions are stored as document offsets rather than UI elements.
+/// </summary>
 public sealed partial class VirtualTerminalControl : UserControl
 {
     private const double HORIZONTAL_PADDING = 16;
@@ -19,6 +23,7 @@ public sealed partial class VirtualTerminalControl : UserControl
     private readonly VirtualTerminalDocument _document = new();
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _caretTimer;
     private bool _isPointerSelecting;
+    // Both ends use UTF-16 document offsets so recycled row elements never own selection state.
     private int _selectionAnchor;
     private int _selectionActive;
     private double _characterWidth = 8;
@@ -37,6 +42,8 @@ public sealed partial class VirtualTerminalControl : UserControl
         _document.Clear();
         LineRepeater.ItemsSource = _document.Lines;
 
+        // ScrollViewer and TextBox handle pointer and keyboard events internally. Registering
+        // with handledEventsToo keeps terminal interaction available after those class handlers run.
         AddHandler(PointerPressedEvent, new PointerEventHandler(OnPointerPressed), handledEventsToo: true);
         AddHandler(PointerMovedEvent, new PointerEventHandler(OnPointerMoved), handledEventsToo: true);
         AddHandler(PointerReleasedEvent, new PointerEventHandler(OnPointerReleased), handledEventsToo: true);
@@ -48,6 +55,8 @@ public sealed partial class VirtualTerminalControl : UserControl
         GotFocus += VirtualTerminalControl_GotFocus;
         LineRepeater.LayoutUpdated += LineRepeater_LayoutUpdated;
 
+        // The real TextBox caret is intentionally invisible. Blink only the lightweight
+        // rectangle drawn by the currently realized line presenter.
         _caretTimer = DispatcherQueue.CreateTimer();
         _caretTimer.Interval = TimeSpan.FromMilliseconds(530);
         _caretTimer.IsRepeating = true;
@@ -130,6 +139,8 @@ public sealed partial class VirtualTerminalControl : UserControl
 
     public void SetText(string text, bool shouldScrollToEnd)
     {
+        // Text and HEX documents have different lengths, so a mode switch preserves a
+        // relative scroll position when following the tail is not requested.
         var scrollRatio = ScrollHost.ScrollableHeight <= 0
             ? 0
             : ScrollHost.VerticalOffset / ScrollHost.ScrollableHeight;
@@ -157,6 +168,8 @@ public sealed partial class VirtualTerminalControl : UserControl
             return;
         }
 
+        // An active selection implies that the user is inspecting history and must not
+        // be pulled away by incoming data, even when automatic scrolling is enabled.
         var shouldFollow = AutoScroll && !HasSelection;
         var anchor = CaptureScrollAnchor();
         _document.Append(text);
@@ -230,6 +243,7 @@ public sealed partial class VirtualTerminalControl : UserControl
 
     private void MeasureTextMetrics()
     {
+        // Averaging a long monospace sample avoids rounding error from measuring one glyph.
         var probe = new TextBlock
         {
             Text = new string('M', 100),
@@ -246,6 +260,7 @@ public sealed partial class VirtualTerminalControl : UserControl
     {
         var availableWidth = ScrollHost.ViewportWidth > 0 ? ScrollHost.ViewportWidth : ActualWidth;
         var columns = Math.Max(1, (int)Math.Floor((availableWidth - (HORIZONTAL_PADDING * 2)) / _characterWidth));
+        // Width changes invalidate row numbers. A document offset remains stable across reflow.
         var anchor = CaptureScrollAnchor();
         if (!_document.SetColumns(columns))
         {
@@ -272,10 +287,13 @@ public sealed partial class VirtualTerminalControl : UserControl
     }
 
     private void RequestScrollRatioAfterLayout(double ratio) =>
+        // A negative document offset distinguishes a relative position from a text anchor.
         RequestScrollAnchorAfterLayout(new ScrollAnchor(-1, Math.Clamp(ratio, 0, 1)));
 
     private void QueuePostLayoutViewportUpdate()
     {
+        // ItemsRepeater updates ScrollableHeight during layout. Applying the request sooner
+        // would clamp it to the previous extent and leave automatic scrolling at the top.
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             LineRepeater.UpdateLayout();
@@ -297,6 +315,8 @@ public sealed partial class VirtualTerminalControl : UserControl
             _scrollAnchorAfterLayout = null;
             if (anchor.DocumentOffset < 0)
             {
+                // Negative offsets encode a proportional position used when switching
+                // between text and HEX documents that do not share character offsets.
                 ScrollHost.ChangeView(
                     null,
                     ScrollHost.ScrollableHeight * anchor.WithinLineOffset,
@@ -324,6 +344,8 @@ public sealed partial class VirtualTerminalControl : UserControl
             return new ScrollAnchor(0, 0);
         }
 
+        // Store the first visible character plus its fractional row offset. This survives
+        // appends and complete row-index rebuilds without depending on a stale row number.
         var lineIndex = Math.Clamp((int)Math.Floor(ScrollHost.VerticalOffset / _lineHeight), 0, _document.LineCount - 1);
         var line = _document.GetLine(lineIndex);
         var withinLine = ScrollHost.VerticalOffset - (lineIndex * _lineHeight);
@@ -370,12 +392,16 @@ public sealed partial class VirtualTerminalControl : UserControl
     private void UpdatePresenter(TerminalLinePresenter presenter, int lineIndex)
     {
         var line = _document.GetLine(lineIndex);
+        // Intersect the document-wide selection with this realized row. Rows outside
+        // the viewport do not need selection visuals and may not have UI elements.
         var selectionStart = Math.Min(_selectionAnchor, _selectionActive);
         var selectionEnd = Math.Max(_selectionAnchor, _selectionActive);
         var localStart = Math.Clamp(selectionStart, line.Start, line.End);
         var localEnd = Math.Clamp(selectionEnd, line.Start, line.End);
         var selectionStartCell = _document.GetCellOffset(line, localStart);
         var selectionEndCell = _document.GetCellOffset(line, localEnd);
+        // A selected hard line break has no glyph, so the presenter draws one cell to
+        // make a selection that crosses an empty line visually continuous.
         var includesLineBreak = line.BreakLength > 0 && selectionStart <= line.End && selectionEnd > line.End;
         var caretLineIndex = _document.FindLineIndex(_selectionActive);
         var showCaret = _hasInputFocus && _isCaretVisible && !HasSelection && lineIndex == caretLineIndex;
@@ -398,6 +424,8 @@ public sealed partial class VirtualTerminalControl : UserControl
 
     private void OnPointerPressed(object sender, PointerRoutedEventArgs args)
     {
+        // Coordinates relative to ItemsRepeater include the scrolled content offset,
+        // allowing a direct conversion from Y position to the logical row index.
         var point = args.GetCurrentPoint(LineRepeater);
         if (!point.Properties.IsLeftButtonPressed)
         {
@@ -470,6 +498,8 @@ public sealed partial class VirtualTerminalControl : UserControl
 
     private void InputProxy_GotFocus(object sender, RoutedEventArgs args)
     {
+        // Keep focus on the invisible native text input surface while the visible
+        // caret is rendered independently by a virtual row presenter.
         _hasInputFocus = true;
         ResetCaretBlink();
         if (!_caretTimer.IsRunning)
@@ -538,10 +568,9 @@ public sealed partial class VirtualTerminalControl : UserControl
             return;
         }
 
-        // CharacterReceived reports the composed character produced by the
-        // current keyboard layout/IME. Handling it here gives the terminal a
-        // direct key-input path without waiting for the invisible proxy to
-        // retain editable text. Clipboard paste remains on TextChanged.
+        // CharacterReceived reports the composed character produced by the current
+        // keyboard layout or IME. Handling it here avoids waiting for the invisible
+        // proxy to retain editable text. Clipboard paste remains on TextChanged.
         args.Handled = true;
         if (_isInputEnabled && character is not '\b' and not '\u007F')
         {
@@ -608,6 +637,8 @@ public sealed partial class VirtualTerminalControl : UserControl
             return;
         }
 
+        // Paste operations can bypass CharacterReceived. Capture the temporary value,
+        // then clear it under a reentrancy guard so the proxy never becomes local echo.
         var insertedText = inputProxy.Text;
         _isClearingInputProxy = true;
         inputProxy.Text = string.Empty;

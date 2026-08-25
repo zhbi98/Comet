@@ -194,12 +194,16 @@ public sealed partial class MainPage
 
     private void SerialPort_BytesReceived(object? sender, SerialBytesReceivedEventArgs e)
     {
+        // SerialPort raises this callback on a worker thread. Keep it non-blocking and
+        // transfer ownership of UI work to a single dispatcher drain.
         _receiveQueue.Enqueue(e);
         ScheduleReceiveQueueDrain();
     }
 
     private void ScheduleReceiveQueueDrain()
     {
+        // The flag prevents a burst of transport callbacks from flooding the UI queue
+        // with one dispatcher operation per serial read.
         if (Interlocked.Exchange(ref _receiveDrainScheduled, 1) != 0)
         {
             return;
@@ -223,6 +227,8 @@ public sealed partial class MainPage
             return;
         }
 
+        // Bound both bytes and dispatcher time so sustained input cannot monopolize
+        // the UI thread while still amortizing allocations across small serial reads.
         const int maximumBatchBytes = 256 * 1024;
         var drainStarted = Stopwatch.GetTimestamp();
         var chunks = new List<SerialBytesReceivedEventArgs>();
@@ -360,6 +366,8 @@ public sealed partial class MainPage
 
     private void RepeatTimer_Tick()
     {
+        // Timer callbacks run outside the UI thread. Only one write may be active;
+        // status counters and terminal rendering are marshalled back afterwards.
         if (Volatile.Read(ref _repeatSendEnabled) == 0 ||
             Interlocked.Exchange(ref _repeatSendInProgress, 1) != 0)
         {

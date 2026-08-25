@@ -20,6 +20,8 @@ internal sealed class StreamingTextDecoder
             return string.Empty;
         }
 
+        // Convert may retain an incomplete multi-byte sequence in Decoder until the
+        // next serial chunk arrives, so this method deliberately never flushes it.
         var decoded = new StringBuilder(bytes.Length);
         var offset = 0;
         while (offset < bytes.Length)

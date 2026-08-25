@@ -4,6 +4,10 @@ using System.Text;
 
 namespace Comet.Core.Terminal;
 
+/// <summary>
+/// Describes one visual row while keeping its positions in the original UTF-16 document.
+/// <see cref="Text"/> may expand tabs for display, so it must not be used as the source for copying.
+/// </summary>
 internal sealed record TerminalDisplayLine(
     int Start,
     int Length,
@@ -52,6 +56,8 @@ internal sealed class VirtualTerminalDocument
             return;
         }
 
+        // New characters can only affect the previous tail row: it may gain text,
+        // complete a CRLF pair, or wrap into additional rows. Earlier rows are immutable.
         var rebuildIndex = Math.Max(0, _lines.Count - 1);
         var rebuildStart = _lines.Count == 0 ? 0 : _lines[rebuildIndex].Start;
         _text.Append(text);
@@ -66,6 +72,8 @@ internal sealed class VirtualTerminalDocument
             return;
         }
 
+        // Replace and Add notifications let ItemsRepeater preserve its realized window;
+        // a Reset here would recycle every visible element for each receive batch.
         _lines[rebuildIndex] = replacement[0];
         for (var index = 1; index < replacement.Count; index++)
         {
@@ -96,6 +104,8 @@ internal sealed class VirtualTerminalDocument
         }
 
         documentOffset = Math.Clamp(documentOffset, 0, _text.Length);
+        // Find the last row whose start is not greater than the document offset.
+        // This also assigns an offset at a soft-wrap boundary to the following row.
         var low = 0;
         var high = _lines.Count - 1;
         while (low <= high)
@@ -117,6 +127,8 @@ internal sealed class VirtualTerminalDocument
     public int GetDocumentOffset(int lineIndex, double cellPosition)
     {
         var line = GetLine(lineIndex);
+        // Pointer coordinates use terminal cells, whereas selections use UTF-16 offsets.
+        // Choosing the nearest side of a wide glyph makes click placement predictable.
         var targetCell = Math.Max(0, (int)Math.Round(cellPosition, MidpointRounding.AwayFromZero));
         var offset = line.Start;
         var cell = 0;
@@ -167,6 +179,8 @@ internal sealed class VirtualTerminalDocument
 
     public int MoveByCodePoint(int position, int delta)
     {
+        // Selection positions are UTF-16 offsets, but keyboard navigation must not
+        // leave the caret between the high and low surrogate of one Unicode scalar.
         position = Math.Clamp(position, 0, _text.Length);
         if (delta < 0 && position > 0)
         {
@@ -195,6 +209,8 @@ internal sealed class VirtualTerminalDocument
 
     private void RebuildAllLines()
     {
+        // A complete replacement is reserved for mode or width changes, where every
+        // row may legitimately differ and incremental notifications provide no benefit.
         _lines = new ObservableCollection<TerminalDisplayLine>(CreateLines(0));
     }
 
@@ -214,6 +230,8 @@ internal sealed class VirtualTerminalDocument
             return result;
         }
 
+        // A row ends at either a hard line break or the configured cell width.
+        // The source length and rendered cell count deliberately remain separate.
         while (position < _text.Length)
         {
             var lineStart = position;
@@ -244,6 +262,8 @@ internal sealed class VirtualTerminalDocument
 
                 if (character == '\t')
                 {
+                    // Expanding tabs only in the row text keeps measurement simple;
+                    // copying still reads the original tab from the document.
                     display.Append(' ', cellWidth);
                 }
                 else
@@ -289,6 +309,8 @@ internal sealed class VirtualTerminalDocument
             return TAB_SIZE - (currentCell % TAB_SIZE);
         }
 
+        // This is a terminal-oriented width approximation rather than full text shaping.
+        // It covers combining marks, common CJK ranges, and emoji used in serial output.
         var codeUnitLength = GetCodeUnitLength(offset);
         var category = codeUnitLength == 1
             ? char.GetUnicodeCategory(_text[offset])

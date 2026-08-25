@@ -26,6 +26,8 @@ public sealed partial class MainPage
 
     private void ReceiveHexCheckBox_Click(object sender, RoutedEventArgs e)
     {
+        // TerminalBuffer already maintains both formatted sessions. Discarding the
+        // pending UI suffix is safe because SetText reads the complete selected view.
         _terminalRenderTimer.Stop();
         _isTerminalRenderPending = false;
         _pendingTerminalText.Clear();
@@ -46,6 +48,8 @@ public sealed partial class MainPage
 
         try
         {
+            // The terminal input surface forwards real newline characters, unlike the
+            // bottom composer where escape sequences are parsed before this point.
             var configuredLineEnding = ResolveLineEnding(LineEndingComboBox.SelectedItem as string);
             var terminalLineEnding = configuredLineEnding.Length == 0 ? "\n" : configuredLineEnding;
             var terminalText = text
@@ -130,6 +134,8 @@ public sealed partial class MainPage
             return;
         }
 
+        // Coalesce small transport callbacks before notifying ItemsRepeater. This keeps
+        // byte accounting immediate without forcing one layout pass per receive event.
         _pendingTerminalText.Append(update.AppendedText);
         ScheduleTerminalRender();
         EmptyTerminalPanel.Visibility = Visibility.Collapsed;
@@ -142,6 +148,8 @@ public sealed partial class MainPage
             return;
         }
 
+        // Larger bursts wait slightly longer so one render processes more data while
+        // ordinary interactive traffic still appears with low latency.
         _terminalRenderTimer.Interval = TimeSpan.FromMilliseconds(_pendingTerminalText.Length switch
         {
             < 25_000 => 33,

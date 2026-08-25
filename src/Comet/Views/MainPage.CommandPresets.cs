@@ -9,6 +9,8 @@ public sealed partial class MainPage
 {
     private void InitializeCommandPresets()
     {
+        // Bind once to the observable collection so later add and remove operations
+        // update the list without replacing its ItemsSource.
         PresetList.ItemsSource = _commandPresets;
         foreach (var preset in CommandPresetStorageService.LoadPresets())
         {
@@ -46,6 +48,8 @@ public sealed partial class MainPage
             return;
         }
 
+        // Quick send intentionally bypasses the bottom composer. A preset should not
+        // overwrite text that the user is currently preparing there.
         SendPayload(preset.Command, preset.IsHex, preset.LineEnding, shouldShowErrors: true);
     }
 
@@ -100,6 +104,8 @@ public sealed partial class MainPage
             return;
         }
 
+        // The item template uses one-way bindings. Commit edits explicitly on focus
+        // loss, then normalize the visible value before persisting the collection.
         preset.Name = string.IsNullOrWhiteSpace(textBox.Text) ? "未命名指令" : textBox.Text.Trim();
         textBox.Text = preset.Name;
         SaveCommandPresets(shouldShowError: true);
@@ -123,6 +129,8 @@ public sealed partial class MainPage
             return null;
         }
 
+        // Resolve by the stable model identifier because ListView containers may be
+        // recycled and the clicked element is not itself the data item.
         return _commandPresets.FirstOrDefault(preset => preset.Id == id);
     }
 

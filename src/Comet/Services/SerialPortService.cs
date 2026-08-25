@@ -69,6 +69,8 @@ public sealed class SerialPortService : IDisposable
 
     private static Dictionary<string, string> GetPresentPortFriendlyNames()
     {
+        // SerialPort exposes only COM names. SetupAPI supplies the matching device
+        // description (for example, CH340) without opening the port.
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var classGuid = PortsDeviceSetupClass;
         var deviceInfoSet = SetupDiGetClassDevs(
@@ -244,6 +246,8 @@ public sealed class SerialPortService : IDisposable
     {
         try
         {
+            // Copy bytes before raising the event: the SerialPort buffer and callback
+            // thread must not leak into consumers that process data asynchronously.
             var port = (SerialPort)sender;
             var count = port.BytesToRead;
             if (count <= 0)
@@ -273,6 +277,8 @@ public sealed class SerialPortService : IDisposable
 
     private void CloseCore()
     {
+        // Clear the shared reference before closing. Concurrent Send calls then fail
+        // deterministically instead of writing through a port being disposed.
         var port = _port;
         _port = null;
         if (port is null)

@@ -3,6 +3,10 @@ using Comet.Models;
 
 namespace Comet.Services;
 
+/// <summary>
+/// Persists user-defined command presets as JSON in the current user's local
+/// application-data directory.
+/// </summary>
 public static class CommandPresetStorageService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -10,6 +14,8 @@ public static class CommandPresetStorageService
         WriteIndented = true
     };
 
+    // Presets are user settings rather than application assets. LocalApplicationData
+    // remains writable for installed, unpackaged, and portable application launches.
     private static readonly string StoreDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Comet");
@@ -31,6 +37,8 @@ public static class CommandPresetStorageService
         }
         catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
         {
+            // A missing, unreadable, or malformed preferences file must not prevent
+            // the terminal from starting; the UI falls back to an empty collection.
             return [];
         }
     }

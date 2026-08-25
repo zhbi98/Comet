@@ -85,6 +85,8 @@ public sealed partial class MainPage : Page
 
     internal void Shutdown()
     {
+        // Both Page.Unloaded and the window close callback can reach this method.
+        // Serial and native timer resources must be released exactly once.
         if (Interlocked.Exchange(ref _shutdownState, 1) != 0)
         {
             return;

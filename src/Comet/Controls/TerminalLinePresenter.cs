@@ -5,6 +5,10 @@ using Microsoft.UI.Xaml.Shapes;
 
 namespace Comet.Controls;
 
+/// <summary>
+/// Renders one recycled terminal row. Document-level interaction state remains in
+/// <see cref="VirtualTerminalControl"/> so recycling cannot lose selection or caret positions.
+/// </summary>
 public sealed class TerminalLinePresenter : Grid
 {
     private readonly Rectangle _selection = new()
@@ -36,6 +40,7 @@ public sealed class TerminalLinePresenter : Grid
     public TerminalLinePresenter()
     {
         IsHitTestVisible = false;
+        // Layer order keeps selection behind glyphs and the caret above both.
         Children.Add(_selection);
         Children.Add(_text);
         Children.Add(_caret);
@@ -72,6 +77,7 @@ public sealed class TerminalLinePresenter : Grid
         var selectedCells = Math.Max(0, selectionEndCell - selectionStartCell);
         if (selectedCells == 0 && includesLineBreak)
         {
+            // Hard line breaks have no visible glyph but still belong to copied text.
             selectedCells = 1;
         }
 

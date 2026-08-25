@@ -3,6 +3,10 @@ using System.Runtime.InteropServices;
 
 namespace Comet.Helpers;
 
+/// <summary>
+/// Runs periodic work from a Windows waitable timer without depending on the UI
+/// dispatcher. The callback is invoked on a dedicated background thread.
+/// </summary>
 internal sealed class HighResolutionPeriodicTimer : IDisposable
 {
     private const uint CreateWaitableTimerHighResolution = 0x00000002;
@@ -21,6 +25,8 @@ internal sealed class HighResolutionPeriodicTimer : IDisposable
     public HighResolutionPeriodicTimer(Action callback)
     {
         _callback = callback ?? throw new ArgumentNullException(nameof(callback));
+        // High-resolution timers are unavailable on some supported Windows versions;
+        // the ordinary waitable timer preserves behavior on those systems.
         var timerHandle = CreateWaitableTimerEx(
             0,
             null,
@@ -59,6 +65,7 @@ internal sealed class HighResolutionPeriodicTimer : IDisposable
     {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
 
+        // Win32 represents a relative due time as a negative count of 100 ns units.
         var dueTimeTicks = -Math.Max(1, (long)Math.Round(dueTime.TotalMilliseconds * 10_000d));
         var periodMilliseconds = checked((int)Math.Round(period.TotalMilliseconds));
         if (periodMilliseconds <= 0)
@@ -96,6 +103,8 @@ internal sealed class HighResolutionPeriodicTimer : IDisposable
     {
         while (!_isDisposed)
         {
+            // The control event interrupts an infinite timer wait when Stop or Dispose
+            // changes the timer state.
             var waitResult = WaitForMultipleObjects(
                 (uint)_waitHandles.Length,
                 _waitHandles,
@@ -128,6 +137,7 @@ internal sealed class HighResolutionPeriodicTimer : IDisposable
         _isDisposed = true;
         _ = CancelWaitableTimer(_timerHandle);
         _ = SetEvent(_controlEventHandle);
+        // Handles remain valid until the worker has observed the dispose signal.
         _workerThread.Join();
         _ = CloseHandle(_controlEventHandle);
         _ = CloseHandle(_timerHandle);
