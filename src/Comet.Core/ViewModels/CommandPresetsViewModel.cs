@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Comet.Core.Presets;
 using Comet.Models;
 using Comet.Services.Abstractions;
 
@@ -78,11 +79,47 @@ public sealed class CommandPresetsViewModel : ObservableObject
 
     public CommandPresetModel? Find(string id) => Items.FirstOrDefault(preset => preset.Id == id);
 
+    public string ExportBackup() => CommandPresetJsonCodec.Serialize(Items);
+
+    public int ValidateBackup(string json) => CommandPresetJsonCodec.Deserialize(json).Count;
+
+    public int ImportBackup(string json)
+    {
+        // Parse and normalize the complete backup before touching the observable
+        // collection. Invalid JSON therefore cannot partially replace the UI state.
+        var importedPresets = CommandPresetJsonCodec.Deserialize(json);
+        var previousPresets = Items.ToArray();
+        ReplaceItems(importedPresets);
+        try
+        {
+            Save();
+            return importedPresets.Count;
+        }
+        catch
+        {
+            // Keep the in-memory collection consistent with the last known state when
+            // persistence fails. The original exception is retained for the UI.
+            ReplaceItems(previousPresets);
+            throw;
+        }
+    }
+
     private void Save() => _storageService.SavePresets(Items);
 
     private void RaiseCollectionStateChanged()
     {
         OnPropertyChanged(nameof(CountText));
         OnPropertyChanged(nameof(IsEmpty));
+    }
+
+    private void ReplaceItems(IEnumerable<CommandPresetModel> presets)
+    {
+        Items.Clear();
+        foreach (var preset in presets)
+        {
+            Items.Add(preset);
+        }
+
+        RaiseCollectionStateChanged();
     }
 }

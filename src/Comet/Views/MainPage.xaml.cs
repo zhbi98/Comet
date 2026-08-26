@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Text;
 using Comet.Models;
 using Comet.ViewModels;
@@ -46,6 +47,9 @@ public sealed partial class MainPage : Page
 
         TerminalView.InputReceived += (_, args) => SendTerminalInput(args.Text);
         TerminalView.ViewportChanged += (_, _) => UpdateTerminalItemStatus();
+        ViewModel.TerminalAppearance.PropertyChanged += TerminalAppearance_PropertyChanged;
+        ViewModel.CommandPresets.PropertyChanged += CommandPresets_PropertyChanged;
+        ApplyTerminalAppearance();
         AutoScrollCheckBox.Click += (_, _) =>
         {
             TerminalView.AutoScroll = AutoScrollCheckBox.IsChecked == true;
@@ -85,6 +89,8 @@ public sealed partial class MainPage : Page
         }
 
         _isUnloaded = true;
+        ViewModel.TerminalAppearance.PropertyChanged -= TerminalAppearance_PropertyChanged;
+        ViewModel.CommandPresets.PropertyChanged -= CommandPresets_PropertyChanged;
         StopRepeatSending();
         _terminalRenderTimer.Stop();
         try
@@ -100,6 +106,22 @@ public sealed partial class MainPage : Page
         {
             ViewModel.Dispose();
         }
+    }
+
+    private void TerminalAppearance_PropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName is nameof(TerminalAppearanceViewModel.FontFamilyName) or
+            nameof(TerminalAppearanceViewModel.FontSize))
+        {
+            ApplyTerminalAppearance();
+        }
+    }
+
+    private void ApplyTerminalAppearance()
+    {
+        TerminalView.ApplyTypography(
+            new FontFamily(ViewModel.TerminalAppearance.FontFamilyName),
+            ViewModel.TerminalAppearance.FontSize);
     }
 
     private void InitializeSerialOptions()

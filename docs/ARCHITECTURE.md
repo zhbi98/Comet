@@ -27,6 +27,7 @@ Comet（WinUI 3 应用）
   -> MainViewModel
        ├─ ConnectionViewModel -> ISerialPortService
        ├─ TerminalViewModel   -> Core/Terminal + Core/Text
+       ├─ TerminalAppearanceViewModel
        ├─ TransmissionViewModel -> Core/Transmission
        ├─ CommandPresetsViewModel -> ICommandPresetStorageService
        └─ RepeatSendViewModel -> ConnectionViewModel + IPeriodicTimer
@@ -68,8 +69,9 @@ Comet.Core
 | --- | --- |
 | `ConnectionViewModel` | 端口集合、当前端口、连接状态、刷新、打开、关闭和发送入口 |
 | `TerminalViewModel` | 完整会话、流式解码器、RX/TX 字节计数和显示模式 |
+| `TerminalAppearanceViewModel` | 字体名称、字号约束和恢复默认；仅保存平台无关的值，不引用 WinUI 字体类型 |
 | `TransmissionViewModel` | 把页面发送意图交给纯核心发送引擎 |
-| `CommandPresetsViewModel` | 快捷指令集合、增删改查和持久化协调 |
+| `CommandPresetsViewModel` | 快捷指令集合、增删改查、JSON 备份导入导出和持久化协调 |
 | `RepeatSendViewModel` | 周期发送状态、并发写入保护以及成功/失败通知 |
 
 ViewModel 使用 `INotifyPropertyChanged` 暴露可绑定状态。需要 WinUI 控件才能完成的动作由事件返回给 View，例如循环发送成功后，View 再把 TX 文本提交到终端控件。
@@ -94,6 +96,10 @@ WinUI 项目的 `App` 创建服务和 `MainViewModel`，`MainWindow` 把 ViewMod
 - 把 ViewModel 产生的终端增量交给 `VirtualTerminalControl`。
 
 `VirtualTerminalControl` 是专用 View 控件。它管理绘制、选择、复制、光标与输入代理，但不打开串口、不保存快捷指令，也不解释发送文本。
+
+标题栏主菜单和字体设置对话框属于 `MainWindow` 的 WinUI 交互。`MainWindow.xaml.cs` 只保留窗口生命周期，字体交互与快捷指令备份分别位于对应的 partial code-behind 文件。菜单只负责把用户导航到字体设置、快捷指令导入或导出操作，不保存业务状态。字体设置只修改 `TerminalAppearanceViewModel`；`MainPage` 监听状态变化并把字体名称转换为 WinUI `FontFamily`。`VirtualTerminalControl` 原子应用字体与字号，重新测量字符单元并按文档偏移保留滚动和选择状态。依赖方向始终为 View → ViewModel，不允许外观 ViewModel 持有窗口或终端控件。
+
+快捷指令备份的系统文件选择器和覆盖确认也位于 `MainWindow`。`CommandPresetJsonCodec` 在 Core 中定义本地存储与备份文件共用的 JSON 格式；`CommandPresetsViewModel` 在完整解析成功后替换集合并调用抽象存储服务，保存失败则恢复原集合。窗口不复制序列化规则，Core 不依赖 `StorageFile`、文件选择器或 `ContentDialog`。
 
 ## 关键数据流
 

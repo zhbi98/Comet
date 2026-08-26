@@ -17,16 +17,20 @@ namespace Comet.Views;
 public sealed partial class MainWindow : Window
 {
     private readonly WindowIconManager? _windowIconManager;
+    private readonly MainViewModel _viewModel;
 
     public MainWindow(MainViewModel viewModel)
     {
+        _viewModel = viewModel;
         InitializeComponent();
 
-        AppTitleBar.IconSource = WindowIconManager.CreateTitleBarIconSource();
+        TitleBarIconImage.Source = WindowIconManager.CreateTitleBarImageSource();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         _windowIconManager = WindowIconManager.Attach(WinRT.Interop.WindowNative.GetWindowHandle(this));
         Closed += MainWindow_Closed;
+
+        InitializeTerminalAppearance();
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {

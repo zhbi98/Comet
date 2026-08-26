@@ -1,4 +1,3 @@
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System.Runtime.InteropServices;
 
@@ -23,7 +22,7 @@ internal sealed class WindowIconManager : IDisposable
         _windowIconHandle = windowIconHandle;
     }
 
-    public static ImageIconSource? CreateTitleBarIconSource()
+    public static BitmapImage? CreateTitleBarImageSource()
     {
         using var iconStream = typeof(WindowIconManager).Assembly
             .GetManifestResourceStream(EmbeddedIconResourceName);
@@ -40,10 +39,7 @@ internal sealed class WindowIconManager : IDisposable
         };
         bitmapImage.SetSource(randomAccessStream);
 
-        return new ImageIconSource
-        {
-            ImageSource = bitmapImage
-        };
+        return bitmapImage;
     }
 
     public static WindowIconManager? Attach(nint windowHandle)

@@ -36,7 +36,7 @@ Comet 是基于 WinUI 3 与 .NET 10 开发的桌面串口调试工具。项目�
 | 数据接收 | UTF-8、GBK、ASCII 流式解码，文本与 HEX 双视图 |
 | 终端显示 | 时间戳、RX/TX/SYS 前缀、自动换行、自动滚动、多行选择与复制 |
 | 大数据处理 | 接收队列、分批处理、完整会话/虚拟化视口分离、增量行索引与渲染 |
-| 辅助功能 | 快捷指令持久化、完整格式化会话日志保存、RX/TX 字节计数 |
+| 辅助功能 | 快捷指令持久化与 JSON 备份、完整格式化会话日志保存、RX/TX 字节计数 |
 | 界面 | 固定浅色主题，适配 Windows 10/11 的符号字体和任务栏图标 |
 
 ## 快速使用
@@ -75,6 +75,10 @@ COM5 (USB-SERIAL CH340)
 | DTR / RTS | 开、关 | 关 |
 
 连接后参数区会锁定。断开串口后才能修改设置或切换端口。
+
+### 设置
+
+标题栏左上角在应用图标右侧提供主菜单按钮。菜单包含“终端字体设置…”、“导入快捷指令…”和“导出快捷指令…”三个入口。字体设置在独立对话框中完成，支持 10–28 pt、即时预览与“恢复默认”；修改会立即重新测量虚拟终端行宽并重排软换行，不改变会话文本、选择位置或串口状态。默认字体为 Cascadia Mono 13 pt。
 
 ### 发送方式
 
@@ -166,6 +170,8 @@ HH:mm:ss.fff  SYS  状态
 | 删除 | 删除预设并立即保存 |
 
 现有预设可直接编辑名称和内容，失去焦点时保存。模式和行尾当前不能在已有条目上直接修改，需要删除后重新创建。
+
+左上角主菜单中的“导出快捷指令…”可把全部预设导出为 UTF-8 JSON 文件，“导入快捷指令…”用于恢复备份。导入前会验证文件格式并显示覆盖确认；确认后以备份内容整体替换当前列表并立即保存。取消、无效 JSON、超过 10 MB 的文件或保存失败都不会部分导入，保存失败时会恢复导入前的内存列表。
 
 ### 日志、清空与计数
 
@@ -260,11 +266,12 @@ SerialPort.DataReceived
 
 | 组件 | 职责 |
 | --- | --- |
-| `MainViewModel` | 聚合连接、终端、发送、快捷指令和循环发送 ViewModel |
+| `MainViewModel` | 聚合连接、终端、外观、发送、快捷指令和循环发送 ViewModel |
 | `ConnectionViewModel` | 端口集合、连接状态以及串口服务协调 |
 | `TerminalViewModel` | 完整会话、流式解码和 RX/TX 计数 |
+| `TerminalAppearanceViewModel` | UI 无关的终端字体名称、字号范围和默认值 |
 | `TransmissionViewModel` | 向 UI 暴露纯发送引擎 |
-| `CommandPresetsViewModel` | 快捷指令集合、编辑和持久化协调 |
+| `CommandPresetsViewModel` | 快捷指令集合、编辑、JSON 备份和持久化协调 |
 | `RepeatSendViewModel` | 周期发送状态、后台写入和并发保护 |
 | `SerialPayloadEngine` | 文本转义、HEX、行尾和内容区输入的纯 C# 解释规则 |
 | `SerialPortService` | 枚举、打开、关闭、读取和写入串口 |
@@ -274,13 +281,14 @@ SerialPort.DataReceived
 | `VirtualTerminalControl` | 可见行虚拟化、滚动锚点、跨行选择、复制和键入代理 |
 | `HexCodec` | HEX 文本解析和字节格式化 |
 | `TextEscapeCodec` | 底部文本发送与文本预设的转义解析 |
+| `CommandPresetJsonCodec` | 本地存储与用户备份共用的 JSON 格式、校验和规范化 |
 | `HighResolutionPeriodicTimer` | 使用 Windows 高分辨率等待计时器提供固定周期调度 |
 | `WindowIconManager` | 从唯一 ICO 创建标题栏图像，并按窗口 DPI 从当前 EXE 提取 Win32 窗口图标 |
 | `CommandPresetStorageService` | 快捷指令 JSON 读写 |
 | `Views/MainPage.SerialPort` | 串口 UI 事件、接收队列与 DispatcherQueue 协调 |
 | `Views/MainPage.Terminal` | 日志选择器、终端渲染、选择与滚动协调 |
 | `Views/MainPage.CommandPresets` | 快捷指令控件事件与焦点处理 |
-| `MainWindow` | 窗口尺寸、标题栏和连接标题 |
+| `MainWindow` | 窗口尺寸、标题栏主菜单、字体设置对话框、备份文件选择器和连接标题 |
 
 ## 代码组织与命名
 
@@ -336,6 +344,7 @@ Comet/
 ├─ src/
 │  ├─ Comet.Core/                  纯 C# 核心类库（不依赖 WinUI）
 │  │  ├─ Models/                   终端、预设和端口模型
+│  │  ├─ Presets/                  快捷指令 JSON 备份格式与校验
 │  │  ├─ Services/                 串口、存储和计时器契约
 │  │  ├─ Terminal/                 双视图会话与虚拟行文档
 │  │  ├─ Text/                     编码、转义和 HEX 规则

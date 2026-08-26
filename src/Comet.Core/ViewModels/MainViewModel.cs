@@ -16,6 +16,7 @@ public sealed class MainViewModel : IDisposable
         // terminal, and repeated sends observe one transport lifecycle.
         Connection = new ConnectionViewModel(serialPortService);
         Terminal = new TerminalViewModel();
+        TerminalAppearance = new TerminalAppearanceViewModel();
         Transmission = new TransmissionViewModel();
         CommandPresets = new CommandPresetsViewModel(commandPresetStorageService);
         RepeatSending = new RepeatSendViewModel(Connection, repeatTimerFactory);
@@ -24,6 +25,8 @@ public sealed class MainViewModel : IDisposable
     public ConnectionViewModel Connection { get; }
 
     public TerminalViewModel Terminal { get; }
+
+    public TerminalAppearanceViewModel TerminalAppearance { get; }
 
     public TransmissionViewModel Transmission { get; }
 

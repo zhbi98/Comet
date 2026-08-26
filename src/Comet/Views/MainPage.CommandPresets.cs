@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using Comet.Models;
+using Comet.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -6,6 +8,15 @@ namespace Comet.Views;
 
 public sealed partial class MainPage
 {
+    private void CommandPresets_PropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName is nameof(CommandPresetsViewModel.CountText) or
+            nameof(CommandPresetsViewModel.IsEmpty))
+        {
+            UpdatePresetPanelState();
+        }
+    }
+
     private void InitializeCommandPresets()
     {
         try

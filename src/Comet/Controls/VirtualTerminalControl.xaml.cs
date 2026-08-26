@@ -226,6 +226,26 @@ public sealed partial class VirtualTerminalControl : UserControl
         Clipboard.Flush();
     }
 
+    /// <summary>
+    /// Applies terminal typography as one visual transaction and recalculates soft
+    /// wrapping without changing the underlying session text or selection offsets.
+    /// </summary>
+    public void ApplyTypography(FontFamily fontFamily, double fontSize)
+    {
+        if (FontFamily.Source == fontFamily.Source && Math.Abs(FontSize - fontSize) < double.Epsilon)
+        {
+            return;
+        }
+
+        FontFamily = fontFamily;
+        FontSize = fontSize;
+        if (IsLoaded)
+        {
+            MeasureTextMetrics();
+            ReflowForCurrentWidth();
+        }
+    }
+
     private void VirtualTerminalControl_Loaded(object sender, RoutedEventArgs e)
     {
         MeasureTextMetrics();
