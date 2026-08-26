@@ -3,15 +3,22 @@ using Comet.Models;
 using Comet.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 
 namespace Comet.Views;
 
 public sealed partial class MainPage
 {
+    // A drag may start only after the dedicated handle arms the next ListView drag.
+    private bool _isPresetDragHandleArmed;
+
+    // Failed saves leave the reordered collection active for the current session.
+    private bool _isPresetOrderDirty;
+    private bool _isPresetReorderMode;
+
     private void CommandPresets_PropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName is nameof(CommandPresetsViewModel.CountText) or
-            nameof(CommandPresetsViewModel.IsEmpty))
+        if (args.PropertyName == nameof(CommandPresetsViewModel.CountText))
         {
             UpdatePresetPanelState();
         }
@@ -25,7 +32,7 @@ public sealed partial class MainPage
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            // Startup behavior remains non-blocking when preferences cannot be saved.
+            // Startup remains non-blocking when preferences cannot be read.
         }
 
         UpdatePresetPanelState();
@@ -34,12 +41,87 @@ public sealed partial class MainPage
     private void TogglePresetPanelButton_Click(object sender, RoutedEventArgs e)
     {
         var shouldShowPanel = PresetPanel.Visibility != Visibility.Visible;
+        if (!shouldShowPanel)
+        {
+            ExitPresetReorderMode();
+        }
+
         PresetPanel.Visibility = shouldShowPanel ? Visibility.Visible : Visibility.Collapsed;
         ToolTipService.SetToolTip(PresetPanelToggleButton, shouldShowPanel ? "隐藏快捷指令" : "显示快捷指令");
     }
 
+    private void PresetReorderModeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isPresetReorderMode)
+        {
+            CompletePresetReorderMode();
+        }
+        else
+        {
+            SetPresetReorderMode(true);
+        }
+    }
+
+    private void CompletePresetReorderMode()
+    {
+        if (_isPresetOrderDirty)
+        {
+            RunPresetMutation(ViewModel.CommandPresets.SaveOrder);
+        }
+
+        SetPresetReorderMode(false);
+    }
+
+    private void ExitPresetReorderMode()
+    {
+        if (!_isPresetReorderMode)
+        {
+            return;
+        }
+
+        SetPresetReorderMode(false);
+    }
+
+    private void SetPresetReorderMode(bool isEnabled)
+    {
+        _isPresetReorderMode = isEnabled;
+        _isPresetDragHandleArmed = false;
+        PresetList.AllowDrop = isEnabled;
+        PresetList.CanDragItems = isEnabled;
+        PresetList.CanReorderItems = isEnabled;
+        PresetReorderModeButton.Content = isEnabled ? "完成" : "编辑排序";
+        ToolTipService.SetToolTip(
+            PresetReorderModeButton,
+            isEnabled ? "完成顺序调整" : "启用拖拽排序");
+    }
+
+    private void PresetDragHandle_PointerPressed(object sender, PointerRoutedEventArgs args)
+    {
+        _isPresetDragHandleArmed = _isPresetReorderMode;
+    }
+
+    private void PresetDragHandle_PointerEnded(object sender, PointerRoutedEventArgs args)
+    {
+        _isPresetDragHandleArmed = false;
+    }
+
+    private void PresetList_DragItemsStarting(object sender, DragItemsStartingEventArgs args)
+    {
+        args.Cancel = !_isPresetReorderMode || !_isPresetDragHandleArmed;
+        _isPresetDragHandleArmed = false;
+    }
+
+    private void PresetList_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        _isPresetDragHandleArmed = false;
+        // ListView has already updated the observable collection. Defer the single
+        // persistence attempt until the user explicitly completes reorder mode.
+        _isPresetOrderDirty = true;
+    }
+
     private void LoadPresetButton_Click(object sender, RoutedEventArgs e)
     {
+        ExitPresetReorderMode();
         var preset = FindCommandPreset(sender);
         if (preset is null)
         {
@@ -52,6 +134,7 @@ public sealed partial class MainPage
 
     private void SendPresetButton_Click(object sender, RoutedEventArgs e)
     {
+        ExitPresetReorderMode();
         var preset = FindCommandPreset(sender);
         if (preset is null)
         {
@@ -65,6 +148,7 @@ public sealed partial class MainPage
 
     private void DeletePresetButton_Click(object sender, RoutedEventArgs e)
     {
+        ExitPresetReorderMode();
         var preset = FindCommandPreset(sender);
         if (preset is null)
         {
@@ -76,6 +160,16 @@ public sealed partial class MainPage
 
     private void AddPresetButton_Click(object sender, RoutedEventArgs e)
     {
+        ExitPresetReorderMode();
+        if (!ViewModel.CommandPresets.CanAdd)
+        {
+            ShowMessage(
+                "无法添加指令",
+                "快捷指令已达到数量上限。",
+                InfoBarSeverity.Warning);
+            return;
+        }
+
         var command = NewPresetCommandTextBox.Text;
         if (string.IsNullOrWhiteSpace(command))
         {
@@ -109,6 +203,12 @@ public sealed partial class MainPage
             return;
         }
 
+        if (_isPresetReorderMode)
+        {
+            textBox.Text = preset.Name;
+            return;
+        }
+
         // The item template uses one-way bindings. Commit edits explicitly on focus
         // loss, then normalize the visible value before persisting the collection.
         RunPresetMutation(() => ViewModel.CommandPresets.UpdateName(preset, textBox.Text));
@@ -122,8 +222,16 @@ public sealed partial class MainPage
             return;
         }
 
+        if (_isPresetReorderMode)
+        {
+            textBox.Text = preset.Command;
+            return;
+        }
+
         RunPresetMutation(() => ViewModel.CommandPresets.UpdateCommand(preset, textBox.Text));
     }
+
+    internal void ExitCommandPresetReorderMode() => ExitPresetReorderMode();
 
     private CommandPresetModel? FindCommandPreset(object sender)
     {
@@ -148,6 +256,7 @@ public sealed partial class MainPage
     {
         PresetCountText.Text = ViewModel.CommandPresets.CountText;
         EmptyPresetText.Visibility = ViewModel.CommandPresets.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
+        PresetReorderModeButton.IsEnabled = _isPresetReorderMode || ViewModel.CommandPresets.Items.Count > 1;
     }
 
     private void RunPresetMutation(Action mutation)
@@ -155,6 +264,9 @@ public sealed partial class MainPage
         try
         {
             mutation();
+            // Every successful mutation writes the complete collection, including
+            // the current item order, so no pending reorder remains afterward.
+            _isPresetOrderDirty = false;
             UpdatePresetPanelState();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)

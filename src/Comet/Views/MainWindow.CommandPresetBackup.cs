@@ -11,6 +11,7 @@ public sealed partial class MainWindow
 
     private async void ExportCommandPresetsMenuItem_Click(object sender, RoutedEventArgs args)
     {
+        ExitPendingPresetReorderMode();
         try
         {
             var picker = CreatePresetExportPicker();
@@ -37,6 +38,7 @@ public sealed partial class MainWindow
 
     private async void ImportCommandPresetsMenuItem_Click(object sender, RoutedEventArgs args)
     {
+        ExitPendingPresetReorderMode();
         try
         {
             var picker = CreatePresetImportPicker();
@@ -117,6 +119,14 @@ public sealed partial class MainWindow
     {
         var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
+    }
+
+    private void ExitPendingPresetReorderMode()
+    {
+        if (RootFrame.Content is MainPage mainPage)
+        {
+            mainPage.ExitCommandPresetReorderMode();
+        }
     }
 
     private async Task ShowPresetBackupMessageAsync(string title, string message)

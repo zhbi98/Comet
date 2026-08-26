@@ -23,22 +23,23 @@ public sealed class CommandPresetsViewModel : ObservableObject
 
     public bool IsEmpty => Items.Count == 0;
 
+    public bool CanAdd => Items.Count < CommandPresetLimits.MaximumCount;
+
     public void Initialize()
     {
-        Items.Clear();
-        foreach (var preset in _storageService.LoadPresets())
-        {
-            Items.Add(preset);
-        }
-
-        // Saving immediately preserves the existing behavior: a missing preferences
-        // file is created on first launch and malformed input becomes an empty store.
-        Save();
-        RaiseCollectionStateChanged();
+        // Initialization is read-only. Truncated or malformed source data remains
+        // recoverable on disk until the user performs an explicit editing action.
+        ReplaceItems(_storageService.LoadPresets());
     }
 
     public CommandPresetModel Add(string? name, string command, bool isHex, string lineEnding)
     {
+        if (!CanAdd)
+        {
+            throw new InvalidOperationException(
+                $"快捷指令最多只能创建 {CommandPresetLimits.MaximumCount} 条。");
+        }
+
         // The fallback number is based on the current UI order, matching the original
         // command panel behavior after deletions and additions.
         var preset = new CommandPresetModel
@@ -79,6 +80,8 @@ public sealed class CommandPresetsViewModel : ObservableObject
 
     public CommandPresetModel? Find(string id) => Items.FirstOrDefault(preset => preset.Id == id);
 
+    public void SaveOrder() => Save();
+
     public string ExportBackup() => CommandPresetJsonCodec.Serialize(Items);
 
     public int ValidateBackup(string json) => CommandPresetJsonCodec.Deserialize(json).Count;
@@ -110,12 +113,13 @@ public sealed class CommandPresetsViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(CountText));
         OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(CanAdd));
     }
 
     private void ReplaceItems(IEnumerable<CommandPresetModel> presets)
     {
         Items.Clear();
-        foreach (var preset in presets)
+        foreach (var preset in presets.Take(CommandPresetLimits.MaximumCount))
         {
             Items.Add(preset);
         }

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Comet.Core.Presets;
 using Comet.Models;
-using Comet.Services.Abstractions;
 using Comet.ViewModels;
 
 namespace Comet.Tests;
@@ -55,6 +54,41 @@ public sealed class CommandPresetBackupTests
     {
         Assert.ThrowsExactly<JsonException>(() =>
             CommandPresetJsonCodec.Deserialize("[{ \"Name\": \"missing command\" }]"));
+    }
+
+    [TestMethod]
+    public void JsonCodec_UsesFirstEntriesWhenInputExceedsLimit()
+    {
+        var json = JsonSerializer.Serialize(
+            Enumerable.Range(1, CommandPresetLimits.MaximumCount + 2)
+                .Select(index => new
+                {
+                    Name = $"Preset {index}",
+                    Command = index.ToString(),
+                    LineEnding = "无"
+                }));
+
+        var restored = CommandPresetJsonCodec.Deserialize(json);
+
+        Assert.HasCount(CommandPresetLimits.MaximumCount, restored);
+        Assert.AreEqual("Preset 1", restored[0].Name);
+        Assert.AreEqual($"Preset {CommandPresetLimits.MaximumCount}", restored[^1].Name);
+    }
+
+    [TestMethod]
+    public void JsonCodec_SerializesAtMostMaximumCount()
+    {
+        var source = Enumerable.Range(1, CommandPresetLimits.MaximumCount + 2)
+            .Select(index => new CommandPresetModel
+            {
+                Name = $"Preset {index}",
+                Command = index.ToString(),
+                LineEnding = "无"
+            });
+
+        using var document = JsonDocument.Parse(CommandPresetJsonCodec.Serialize(source));
+
+        Assert.AreEqual(CommandPresetLimits.MaximumCount, document.RootElement.GetArrayLength());
     }
 
     [TestMethod]
@@ -121,22 +155,4 @@ public sealed class CommandPresetBackupTests
         Assert.AreEqual("保留", viewModel.Items[0].Name);
     }
 
-    private sealed class FakeCommandPresetStorageService : ICommandPresetStorageService
-    {
-        public bool ShouldFailSave { get; set; }
-
-        public IReadOnlyList<CommandPresetModel> LastSavedPresets { get; private set; } = [];
-
-        public IReadOnlyList<CommandPresetModel> LoadPresets() => [];
-
-        public void SavePresets(IEnumerable<CommandPresetModel> presets)
-        {
-            if (ShouldFailSave)
-            {
-                throw new IOException("Simulated save failure.");
-            }
-
-            LastSavedPresets = presets.ToArray();
-        }
-    }
 }

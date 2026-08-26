@@ -212,12 +212,23 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
                                 <StackPanel VerticalAlignment="Center" Spacing="2">
                                     <TextBlock FontSize="14" FontWeight="SemiBold" Text="快捷指令" />
                                     <TextBlock x:Name="PresetCountText" FontSize="11"
                                                Foreground="{StaticResource CometMutedBrush}" Text="0 条预设" />
                                 </StackPanel>
+                                <Button x:Name="PresetReorderModeButton"
+                                        Grid.Column="1"
+                                        Height="28"
+                                        Padding="10,2"
+                                        VerticalAlignment="Center"
+                                        Click="PresetReorderModeButton_Click"
+                                        Content="编辑排序" />
                             </Grid>
 
                             <Border Grid.Row="1" Padding="8" Background="{StaticResource CometSurfaceBrush}"
@@ -254,11 +265,13 @@
                                             <ComboBoxItem Content="LF" />
                                         </ComboBox>
                                         <Button Grid.Column="2" Height="30" HorizontalAlignment="Stretch"
-                                                Click="AddPresetButton_Click" Style="{StaticResource AccentButtonStyle}">
-                                        <StackPanel Orientation="Horizontal" Spacing="7">
-                                            <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="13" Glyph="&#xE710;" />
-                                            <TextBlock Text="添加" />
-                                        </StackPanel>
+                                                Click="AddPresetButton_Click"
+                                                IsEnabled="{x:Bind ViewModel.CommandPresets.CanAdd, Mode=OneWay}"
+                                                Style="{StaticResource AccentButtonStyle}">
+                                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="13" Glyph="&#xE710;" />
+                                                <TextBlock Text="添加" />
+                                            </StackPanel>
                                         </Button>
                                     </Grid>
                                 </Grid>
@@ -267,6 +280,8 @@
                             <Grid Grid.Row="2" Margin="0,0,-8,0">
                                 <ListView x:Name="PresetList" Padding="0,0,16,0" Background="Transparent"
                                           ItemsSource="{x:Bind ViewModel.CommandPresets.Items, Mode=OneWay}"
+                                          DragItemsCompleted="PresetList_DragItemsCompleted"
+                                          DragItemsStarting="PresetList_DragItemsStarting"
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                           ScrollViewer.VerticalScrollBarVisibility="Visible"
                                           ScrollViewer.VerticalScrollMode="Enabled"
@@ -305,26 +320,41 @@
                                                     </Grid>
                                                     <Grid Grid.Row="1" ColumnSpacing="5">
                                                         <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
                                                             <ColumnDefinition Width="*" />
                                                             <ColumnDefinition Width="Auto" />
                                                             <ColumnDefinition Width="Auto" />
                                                             <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
-                                                        <Border Padding="6,2" VerticalAlignment="Center"
+                                                        <Border Width="24" Height="26" Margin="0,0,2,0"
+                                                                VerticalAlignment="Center"
+                                                                Background="Transparent"
+                                                                AutomationProperties.Name="拖动调整顺序"
+                                                                PointerCanceled="PresetDragHandle_PointerEnded"
+                                                                PointerPressed="PresetDragHandle_PointerPressed"
+                                                                PointerReleased="PresetDragHandle_PointerEnded"
+                                                                ToolTipService.ToolTip="点击“编辑排序”后拖动">
+                                                            <FontIcon HorizontalAlignment="Center"
+                                                                      VerticalAlignment="Center"
+                                                                      FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                                                      FontSize="12" Foreground="{StaticResource CometMutedBrush}"
+                                                                      Glyph="&#xE700;" />
+                                                        </Border>
+                                                        <Border Grid.Column="1" Padding="6,2" VerticalAlignment="Center"
                                                                 HorizontalAlignment="Left"
                                                                 Background="{StaticResource CometPresetBadgeBrush}" CornerRadius="4">
                                                             <TextBlock FontFamily="Cascadia Mono" FontSize="9"
                                                                        Foreground="{StaticResource CometMutedBrush}"
                                                                        Text="{Binding ModeLabel}" />
                                                         </Border>
-                                                        <Button Grid.Column="1" Height="26" Padding="8,2"
+                                                        <Button Grid.Column="2" Height="26" Padding="8,2"
                                                                 Content="载入" Tag="{Binding Id}"
                                                                 Click="LoadPresetButton_Click" />
-                                                        <Button Grid.Column="2" Width="28" Height="26" Padding="0" Tag="{Binding Id}"
+                                                        <Button Grid.Column="3" Width="28" Height="26" Padding="0" Tag="{Binding Id}"
                                                                 Click="SendPresetButton_Click" ToolTipService.ToolTip="立即发送">
                                                             <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="11" Glyph="&#xE724;" />
                                                         </Button>
-                                                        <Button Grid.Column="3" Width="28" Height="26" Padding="0" Tag="{Binding Id}"
+                                                        <Button Grid.Column="4" Width="28" Height="26" Padding="0" Tag="{Binding Id}"
                                                                 Click="DeletePresetButton_Click" ToolTipService.ToolTip="删除预设">
                                                             <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="11" Glyph="&#xE74D;" />
                                                         </Button>

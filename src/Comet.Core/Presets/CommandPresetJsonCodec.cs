@@ -9,8 +9,6 @@ namespace Comet.Core.Presets;
 /// </summary>
 public static class CommandPresetJsonCodec
 {
-    private const int MAX_PRESET_COUNT = 10_000;
-
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -22,28 +20,29 @@ public static class CommandPresetJsonCodec
 
     public static string Serialize(IEnumerable<CommandPresetModel> presets) =>
         JsonSerializer.Serialize(
-            presets.Select(preset => new BackupItem
-            {
-                Id = preset.Id,
-                Name = preset.Name,
-                Command = preset.Command,
-                IsHex = preset.IsHex,
-                LineEnding = preset.LineEnding
-            }),
+            presets
+                .Take(CommandPresetLimits.MaximumCount)
+                .Select(preset => new BackupItem
+                {
+                    Id = preset.Id,
+                    Name = preset.Name,
+                    Command = preset.Command,
+                    IsHex = preset.IsHex,
+                    LineEnding = preset.LineEnding
+                }),
             _jsonOptions);
 
     public static IReadOnlyList<CommandPresetModel> Deserialize(string json)
     {
         var backupItems = JsonSerializer.Deserialize<List<BackupItem>>(json, _jsonOptions)
             ?? throw new JsonException("快捷指令备份必须是 JSON 数组。");
-        if (backupItems.Count > MAX_PRESET_COUNT)
-        {
-            throw new JsonException($"快捷指令数量不能超过 {MAX_PRESET_COUNT} 条。");
-        }
 
+        // Ignore overflow entries instead of rejecting the entire user file. The
+        // source file remains untouched until an explicit save action occurs.
+        var acceptedItemCount = Math.Min(backupItems.Count, CommandPresetLimits.MaximumCount);
         var identifiers = new HashSet<string>(StringComparer.Ordinal);
-        var presets = new List<CommandPresetModel>(backupItems.Count);
-        foreach (var backupItem in backupItems)
+        var presets = new List<CommandPresetModel>(acceptedItemCount);
+        foreach (var backupItem in backupItems.Take(CommandPresetLimits.MaximumCount))
         {
             if (backupItem is null || backupItem.Command is null)
             {

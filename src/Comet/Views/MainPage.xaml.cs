@@ -89,6 +89,7 @@ public sealed partial class MainPage : Page
         }
 
         _isUnloaded = true;
+        ExitPresetReorderMode();
         ViewModel.TerminalAppearance.PropertyChanged -= TerminalAppearance_PropertyChanged;
         ViewModel.CommandPresets.PropertyChanged -= CommandPresets_PropertyChanged;
         StopRepeatSending();
