@@ -11,7 +11,9 @@
     RequestedTheme="Light"
     mc:Ignorable="d">
 
-    <Grid Padding="20,8,20,10" RowSpacing="8" Background="{StaticResource CometPageBrush}">
+    <Grid Padding="20,4,20,8"
+          RowSpacing="6"
+          Background="{StaticResource CometPageBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />

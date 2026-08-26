@@ -26,22 +26,28 @@
         </Grid.RowDefinitions>
 
         <!-- Window identity and application menu. -->
-        <TitleBar x:Name="AppTitleBar">
+        <TitleBar x:Name="AppTitleBar"
+                  Height="36">
             <TitleBar.LeftHeader>
-                <StackPanel Orientation="Horizontal" Spacing="4">
+                <StackPanel Margin="0,-3,0,3"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="4">
                     <Image x:Name="TitleBarIconImage"
                            Width="20"
                            Height="20"
-                           Margin="4,0,4,0"
-                           Stretch="Uniform" />
+                           Margin="5,0,4,0"
+                           Stretch="Uniform"
+                           VerticalAlignment="Center" />
 
                     <Button x:Name="MainMenuButton"
-                            Width="36"
-                            Height="32"
+                            Width="32"
+                            Height="28"
                             Padding="0"
                             AutomationProperties.Name="主菜单"
                             Background="Transparent"
                             BorderThickness="0"
+                            VerticalAlignment="Center"
                             ToolTipService.ToolTip="菜单">
                         <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}"
                                   FontSize="16"
@@ -75,7 +81,10 @@
             MainPage.xaml rather than here so you can use Page features such as
             navigation events and the Loaded lifecycle.
         -->
-        <Frame x:Name="RootFrame" Grid.Row="1" />
+        <Frame x:Name="RootFrame"
+               Grid.Row="1"
+               HorizontalContentAlignment="Stretch"
+               VerticalContentAlignment="Stretch" />
 
         <!-- Terminal typography editor. Its values are owned by TerminalAppearanceViewModel. -->
         <ContentDialog x:Name="TerminalFontSettingsDialog"
