@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <Window
     x:Class="Comet.Views.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -12,9 +12,10 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid x:Name="WindowRoot"
-          Background="{StaticResource CometPageBrush}"
-          RequestedTheme="Light">
+    <Grid
+        x:Name="WindowRoot"
+        Background="{StaticResource CometPageBrush}"
+        RequestedTheme="Light">
         <Grid.Resources>
             <x:Double x:Key="TitleBarIconMaxWidth">20</x:Double>
             <x:Double x:Key="TitleBarIconMaxHeight">20</x:Double>
@@ -25,53 +26,60 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Window identity and application menu. -->
-        <TitleBar x:Name="AppTitleBar"
-                  Height="36">
+        <!--  Window identity and application menu.  -->
+        <TitleBar x:Name="AppTitleBar" Height="36">
             <TitleBar.LeftHeader>
-                <StackPanel Margin="0,-3,0,3"
-                            VerticalAlignment="Center"
-                            Orientation="Horizontal"
-                            Spacing="4">
-                    <Image x:Name="TitleBarIconImage"
-                           Width="20"
-                           Height="20"
-                           Margin="5,0,4,0"
-                           Stretch="Uniform"
-                           VerticalAlignment="Center" />
+                <StackPanel
+                    Margin="0,-3,0,3"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="4">
+                    <Image
+                        x:Name="TitleBarIconImage"
+                        Width="20"
+                        Height="20"
+                        Margin="5,0,4,0"
+                        VerticalAlignment="Center"
+                        Stretch="Uniform" />
 
-                    <Button x:Name="MainMenuButton"
-                            Width="32"
-                            Height="28"
-                            Padding="0"
-                            AutomationProperties.Name="主菜单"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            VerticalAlignment="Center"
-                            ToolTipService.ToolTip="菜单">
-                        <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                  FontSize="16"
-                                  Glyph="&#xE700;" />
+                    <Button
+                        x:Name="MainMenuButton"
+                        Width="32"
+                        Height="28"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="主菜单"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTipService.ToolTip="菜单">
+                        <FontIcon
+                            FontFamily="{StaticResource SymbolThemeFontFamily}"
+                            FontSize="16"
+                            Glyph="&#xE700;" />
                         <Button.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                                <MenuFlyoutItem x:Name="TerminalFontSettingsMenuItem"
-                                                Click="TerminalFontSettingsMenuItem_Click"
-                                                Text="终端字体设置…" />
+                                <MenuFlyoutItem
+                                    x:Name="TerminalFontSettingsMenuItem"
+                                    Click="TerminalFontSettingsMenuItem_Click"
+                                    Text="终端字体设置…" />
                                 <MenuFlyoutSeparator />
-                                <MenuFlyoutItem x:Name="ImportCommandPresetsMenuItem"
-                                                Click="ImportCommandPresetsMenuItem_Click"
-                                                Text="导入快捷指令…" />
-                                <MenuFlyoutItem x:Name="ExportCommandPresetsMenuItem"
-                                                Click="ExportCommandPresetsMenuItem_Click"
-                                                Text="导出快捷指令…" />
+                                <MenuFlyoutItem
+                                    x:Name="ImportCommandPresetsMenuItem"
+                                    Click="ImportCommandPresetsMenuItem_Click"
+                                    Text="导入快捷指令…" />
+                                <MenuFlyoutItem
+                                    x:Name="ExportCommandPresetsMenuItem"
+                                    Click="ExportCommandPresetsMenuItem_Click"
+                                    Text="导出快捷指令…" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
 
-                    <TextBlock VerticalAlignment="Center"
-                               Margin="4,0,0,0"
-                               Style="{StaticResource CaptionTextBlockStyle}"
-                               Text="Comet" />
+                    <TextBlock
+                        Margin="4,0,0,0"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="Comet" />
                 </StackPanel>
             </TitleBar.LeftHeader>
         </TitleBar>
@@ -81,18 +89,19 @@
             MainPage.xaml rather than here so you can use Page features such as
             navigation events and the Loaded lifecycle.
         -->
-        <Frame x:Name="RootFrame"
-               Grid.Row="1"
-               HorizontalContentAlignment="Stretch"
-               VerticalContentAlignment="Stretch" />
+        <Frame
+            x:Name="RootFrame"
+            Grid.Row="1"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch" />
 
-        <!-- Terminal typography editor. Its values are owned by TerminalAppearanceViewModel. -->
-        <ContentDialog x:Name="TerminalFontSettingsDialog"
-                       Grid.RowSpan="2"
-                       CloseButtonText="关闭"
-                       Title="终端字体设置">
-            <Grid Width="312"
-                  RowSpacing="12">
+        <!--  Terminal typography editor. Its values are owned by TerminalAppearanceViewModel.  -->
+        <ContentDialog
+            x:Name="TerminalFontSettingsDialog"
+            Title="终端字体设置"
+            Grid.RowSpan="2"
+            CloseButtonText="关闭">
+            <Grid Width="312" RowSpacing="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -100,41 +109,42 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           Text="调整内容区的字体与字号" />
+                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="调整内容区的字体与字号" />
 
-                <ComboBox x:Name="TerminalFontFamilyComboBox"
-                          Grid.Row="1"
-                          HorizontalAlignment="Stretch"
-                          Header="字体"
-                          SelectionChanged="TerminalFontFamilyComboBox_SelectionChanged" />
+                <ComboBox
+                    x:Name="TerminalFontFamilyComboBox"
+                    Grid.Row="1"
+                    HorizontalAlignment="Stretch"
+                    Header="字体"
+                    SelectionChanged="TerminalFontFamilyComboBox_SelectionChanged" />
 
-                <NumberBox x:Name="TerminalFontSizeNumberBox"
-                           Grid.Row="2"
-                           HorizontalAlignment="Stretch"
-                           Header="字号"
-                           SmallChange="1"
-                           SpinButtonPlacementMode="Compact"
-                           ValueChanged="TerminalFontSizeNumberBox_ValueChanged" />
+                <NumberBox
+                    x:Name="TerminalFontSizeNumberBox"
+                    Grid.Row="2"
+                    HorizontalAlignment="Stretch"
+                    Header="字号"
+                    SmallChange="1"
+                    SpinButtonPlacementMode="Compact"
+                    ValueChanged="TerminalFontSizeNumberBox_ValueChanged" />
 
-                <Grid Grid.Row="3"
-                      ColumnSpacing="8">
+                <Grid Grid.Row="3" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border Padding="12,10"
-                            Background="{StaticResource CometSubtleBrush}"
-                            BorderBrush="{StaticResource CometTerminalBorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="7">
-                        <TextBlock x:Name="TerminalFontPreviewTextBlock"
-                                   Text="Comet  Aa  0123456789" />
+                    <Border
+                        Padding="12,10"
+                        Background="{StaticResource CometSubtleBrush}"
+                        BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="7">
+                        <TextBlock x:Name="TerminalFontPreviewTextBlock" Text="Comet  Aa  0123456789" />
                     </Border>
-                    <Button Grid.Column="1"
-                            VerticalAlignment="Stretch"
-                            Click="ResetTerminalFontButton_Click"
-                            Content="恢复默认" />
+                    <Button
+                        Grid.Column="1"
+                        VerticalAlignment="Stretch"
+                        Click="ResetTerminalFontButton_Click"
+                        Content="恢复默认" />
                 </Grid>
             </Grid>
         </ContentDialog>

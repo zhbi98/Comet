@@ -1,3 +1,4 @@
+using Comet.Recording;
 using Comet.Services;
 using Comet.Services.Timing;
 using Comet.ViewModels;
@@ -24,6 +25,7 @@ public partial class App : Application
         var viewModel = new MainViewModel(
             new SerialPortService(),
             new CommandPresetStorageService(),
+            new RawReceiveRecordingService(),
             callback => new HighResolutionPeriodicTimer(callback));
         _window = new MainWindow(viewModel);
         _window.Activate();

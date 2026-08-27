@@ -30,6 +30,7 @@ Comet（WinUI 3 应用）
        ├─ TerminalAppearanceViewModel
        ├─ TransmissionViewModel -> Core/Transmission
        ├─ CommandPresetsViewModel -> ICommandPresetStorageService
+       ├─ ReceiveRecordingViewModel -> IRawReceiveRecordingService
        └─ ScheduledSendViewModel -> ConnectionViewModel + IPeriodicTimer
 
 Views / Controls
@@ -58,6 +59,7 @@ Comet.Core
 | `src/Comet.Core/Transmission` | 解释文本转义、HEX 和行尾，生成实际发送字节；规范化内容区换行输入 |
 | `src/Comet.Core/Text` | HEX 编解码、文本转义、编码目录和跨接收批次流式解码 |
 | `src/Comet.Core/Terminal` | 文本/HEX 双会话、格式化边界、完整分段存储和虚拟显示行文档 |
+| `src/Comet.Core/Recording` | 原始 RX 有界队列、异步顺序写盘、停止刷新和失败处理 |
 
 这些类型不显示消息、不操作控件，也不决定窗口何时滚动。
 
@@ -72,17 +74,19 @@ Comet.Core
 | `TerminalAppearanceViewModel` | 字体名称、字号约束和恢复默认；仅保存平台无关的值，不引用 WinUI 字体类型 |
 | `TransmissionViewModel` | 把页面发送意图交给纯核心发送引擎 |
 | `CommandPresetsViewModel` | 快捷指令集合、增删改查、顺序保存、JSON 备份导入导出和持久化协调 |
+| `ReceiveRecordingViewModel` | 原始 RX 录制启停、文件路径和失败通知 |
 | `ScheduledSendViewModel` | 单条循环与指令列表循环的定时状态、并发写入保护以及失败通知 |
 
-ViewModel 使用 `INotifyPropertyChanged` 暴露可绑定状态。需要 WinUI 控件才能完成的动作由事件返回给 View，例如循环发送成功后，View 再把 TX 文本提交到终端控件。
+常规可绑定状态使用 `INotifyPropertyChanged`；后台录制启停和失败等跨线程状态使用显式事件，由 View 调度到 UI 线程。需要 WinUI 控件才能完成的动作由事件返回给 View，例如循环发送成功后，View 再把 TX 文本提交到终端控件。
 
 ### Services
 
-`Comet.Core/Services` 定义 ViewModel 所需能力，具体实现位于 WinUI 项目的 `Comet/Services`：
+`Comet.Core/Services` 定义 ViewModel 所需能力。Windows 专属实现位于 `Comet/Services`；只依赖 .NET 文件流的录制实现位于 `Comet.Core/Recording`：
 
 - `ISerialPortService` / `SerialPortService`：端口枚举、SetupAPI 设备名称、连接、收发和释放。
 - `ICommandPresetStorageService` / `CommandPresetStorageService`：`presets.json` 读取与保存。
 - `IPeriodicTimer` / `HighResolutionPeriodicTimer`：不依赖 UI 调度器的定时发送周期。
+- `IRawReceiveRecordingService` / `RawReceiveRecordingService`：不依赖 WinUI 的原始 RX 后台写入和生命周期。
 
 抽象接口使 ViewModel 不需要知道串口或文件的实现细节，也为后续单元测试替身保留边界。
 
@@ -93,6 +97,7 @@ WinUI 项目的 `App` 创建服务和 `MainViewModel`，`MainWindow` 把 ViewMod
 - 把控件当前值组合成一次用户操作并调用 ViewModel。
 - 使用 `DispatcherQueue` 合并后台接收通知。
 - 控制 InfoBar、焦点、滚动、文件选择器和窗口标题。
+- 选择原始录制文件并呈现启停操作；View 不写入串口数据文件。
 - 把 ViewModel 产生的终端增量交给 `VirtualTerminalControl`。
 
 `VirtualTerminalControl` 是专用 View 控件。它管理绘制、选择、复制、光标与输入代理，但不打开串口、不保存快捷指令，也不解释发送文本。
@@ -112,11 +117,16 @@ WinUI 项目的 `App` 创建服务和 `MainViewModel`，`MainWindow` 把 ViewMod
 ```text
 SerialPortService.DataReceived
   -> ConnectionViewModel.BytesReceived
+  -> ReceiveRecordingViewModel.TryRecord
+       -> RawReceiveRecordingService 有界队列
+       -> FileStream 顺序写入 .bin
   -> MainPage 并发队列与 UI 批处理
   -> TerminalViewModel.DecodeReceived / RecordReceived
   -> TerminalBuffer.Append
   -> VirtualTerminalControl.AppendText
 ```
+
+录制分支在文本解码和 UI 队列之前接收同一个不可变字节快照。只有录制开启后的新 RX 缓冲进入文件；终端历史、显示转换、TX 和前缀不会反向进入录制服务。
 
 ### 发送
 
@@ -158,6 +168,7 @@ View 开启底部循环或快捷指令列表循环
 8. 两种定时发送的首次写入都在一个完整周期后发生，共用 20–60,000 ms 周期；快捷指令列表持续循环到用户停止。
 9. 关闭窗口时先停止当前定时发送，再关闭并释放串口；整个过程保持幂等。
 10. UI 布局、控件名称、默认值、图标和 Windows 10/11 表现不因分层调整而改变。
+11. 原始录制只写开始后的 RX 字节；停止、断开和关闭必须完成队列排空、文件刷新与释放。
 
 ## 维护规则
 

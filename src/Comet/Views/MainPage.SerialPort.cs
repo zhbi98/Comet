@@ -21,11 +21,11 @@ public sealed partial class MainPage
         PortHintText.Text = ViewModel.Connection.PortHint;
     }
 
-    private void OpenCloseButton_Click(object sender, RoutedEventArgs e)
+    private async void OpenCloseButton_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel.Connection.IsConnected)
         {
-            DisconnectSerialPort();
+            await DisconnectSerialPortAsync();
             return;
         }
 
@@ -62,13 +62,14 @@ public sealed partial class MainPage
         }
     }
 
-    private void DisconnectSerialPort()
+    private async Task DisconnectSerialPortAsync()
     {
         var portName = ViewModel.Connection.PortName ?? "串口";
         StopScheduledSending();
         RepeatSendToggle.IsOn = false;
         PresetCycleToggleButton.IsChecked = false;
         UpdatePresetPanelState();
+        await StopReceiveRecordingAsync(showConfirmation: false);
         ViewModel.Connection.Close();
         ViewModel.Terminal.ResetDecoder();
         AppendTerminalEntry("SYS", $"{portName} 已断开");
@@ -156,6 +157,9 @@ public sealed partial class MainPage
 
     private void SerialPort_BytesReceived(object? sender, SerialBytesReceivedEventArgs e)
     {
+        // Raw recording branches before the UI queue and never reads terminal text.
+        ViewModel.ReceiveRecording.TryRecord(e.Data);
+
         // SerialPort raises this callback on a worker thread. Keep it non-blocking and
         // transfer ownership of UI work to a single dispatcher drain.
         _receiveQueue.Enqueue(e);
@@ -372,6 +376,7 @@ public sealed partial class MainPage
         ConnectionDot.Fill = isOpen ? _connectedBrush : _disconnectedBrush;
         OpenCloseText.Text = isOpen ? "断开串口" : "连接串口";
         OpenCloseIcon.Glyph = isOpen ? "\uE8D7" : "\uE8CE";
+        UpdateReceiveRecordingState();
         if (isOpen)
         {
             PortHintText.Text = "参数已锁定，断开后可修改。";

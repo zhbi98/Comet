@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <Page
     x:Class="Comet.Views.MainPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -7,13 +7,14 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     Loaded="Page_Loaded"
-    Unloaded="Page_Unloaded"
     RequestedTheme="Light"
+    Unloaded="Page_Unloaded"
     mc:Ignorable="d">
 
-    <Grid Padding="20,4,20,8"
-          RowSpacing="6"
-          Background="{StaticResource CometPageBrush}">
+    <Grid
+        Padding="20,4,20,8"
+        Background="{StaticResource CometPageBrush}"
+        RowSpacing="6">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -25,14 +26,23 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Padding="16" Background="{StaticResource CometSurfaceBrush}"
-                    BorderBrush="{StaticResource CometTerminalBorderBrush}" BorderThickness="1" CornerRadius="12">
+            <Border
+                Padding="16"
+                Background="{StaticResource CometSurfaceBrush}"
+                BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="12">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="14">
                         <StackPanel Spacing="3">
-                            <TextBlock FontSize="16" FontWeight="SemiBold" Text="连接设置" />
-                            <TextBlock FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                       Text="配置设备的串口通信参数" />
+                            <TextBlock
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                Text="连接设置" />
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="配置设备的串口通信参数" />
                         </StackPanel>
 
                         <StackPanel x:Name="SettingsPanel" Spacing="12">
@@ -41,57 +51,111 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <ComboBox x:Name="PortComboBox" HorizontalAlignment="Stretch" Header="串口"
-                                          DisplayMemberPath="DisplayName"
-                                          ItemsSource="{x:Bind ViewModel.Connection.Ports, Mode=OneWay}" />
-                                <Button Grid.Column="1" Width="40" Height="34" Padding="0" Margin="0,24,0,0"
-                                        Click="RefreshPortsButton_Click" ToolTipService.ToolTip="刷新串口">
-                                    <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="15" Glyph="&#xE72C;" />
+                                <ComboBox
+                                    x:Name="PortComboBox"
+                                    HorizontalAlignment="Stretch"
+                                    DisplayMemberPath="DisplayName"
+                                    Header="串口"
+                                    ItemsSource="{x:Bind ViewModel.Connection.Ports, Mode=OneWay}" />
+                                <Button
+                                    Grid.Column="1"
+                                    Width="40"
+                                    Height="34"
+                                    Margin="0,24,0,0"
+                                    Padding="0"
+                                    Click="RefreshPortsButton_Click"
+                                    ToolTipService.ToolTip="刷新串口">
+                                    <FontIcon
+                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                        FontSize="15"
+                                        Glyph="&#xE72C;" />
                                 </Button>
                             </Grid>
 
-                            <ComboBox x:Name="BaudRateComboBox" HorizontalAlignment="Stretch" Header="波特率" />
+                            <ComboBox
+                                x:Name="BaudRateComboBox"
+                                HorizontalAlignment="Stretch"
+                                Header="波特率" />
 
                             <Grid ColumnSpacing="10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <ComboBox x:Name="DataBitsComboBox" HorizontalAlignment="Stretch" Header="数据位" />
-                                <ComboBox x:Name="StopBitsComboBox" Grid.Column="1" HorizontalAlignment="Stretch" Header="停止位" />
+                                <ComboBox
+                                    x:Name="DataBitsComboBox"
+                                    HorizontalAlignment="Stretch"
+                                    Header="数据位" />
+                                <ComboBox
+                                    x:Name="StopBitsComboBox"
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Stretch"
+                                    Header="停止位" />
                             </Grid>
 
-                            <ComboBox x:Name="ParityComboBox" HorizontalAlignment="Stretch" Header="校验位" />
-                            <ComboBox x:Name="HandshakeComboBox" HorizontalAlignment="Stretch" Header="流控制" />
-                            <ComboBox x:Name="EncodingComboBox" HorizontalAlignment="Stretch" Header="字符编码" />
+                            <ComboBox
+                                x:Name="ParityComboBox"
+                                HorizontalAlignment="Stretch"
+                                Header="校验位" />
+                            <ComboBox
+                                x:Name="HandshakeComboBox"
+                                HorizontalAlignment="Stretch"
+                                Header="流控制" />
+                            <ComboBox
+                                x:Name="EncodingComboBox"
+                                HorizontalAlignment="Stretch"
+                                Header="字符编码" />
 
                             <Grid ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <ToggleSwitch x:Name="DtrToggle" Header="DTR" OffContent="关" OnContent="开" />
-                                <ToggleSwitch x:Name="RtsToggle" Grid.Column="1" Header="RTS" OffContent="关" OnContent="开" />
+                                <ToggleSwitch
+                                    x:Name="DtrToggle"
+                                    Header="DTR"
+                                    OffContent="关"
+                                    OnContent="开" />
+                                <ToggleSwitch
+                                    x:Name="RtsToggle"
+                                    Grid.Column="1"
+                                    Header="RTS"
+                                    OffContent="关"
+                                    OnContent="开" />
                             </Grid>
                         </StackPanel>
 
-                        <Button x:Name="OpenCloseButton" HorizontalAlignment="Stretch"
-                                Click="OpenCloseButton_Click" Style="{StaticResource AccentButtonStyle}">
+                        <Button
+                            x:Name="OpenCloseButton"
+                            HorizontalAlignment="Stretch"
+                            Click="OpenCloseButton_Click"
+                            Style="{StaticResource AccentButtonStyle}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon x:Name="OpenCloseIcon" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="14" Glyph="&#xE8CE;" />
+                                <FontIcon
+                                    x:Name="OpenCloseIcon"
+                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                    FontSize="14"
+                                    Glyph="&#xE8CE;" />
                                 <TextBlock x:Name="OpenCloseText" Text="连接串口" />
                             </StackPanel>
                         </Button>
 
-                        <TextBlock x:Name="PortHintText" FontSize="11"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   Text="请选择可用串口后连接" TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Name="PortHintText"
+                            FontSize="11"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="请选择可用串口后连接"
+                            TextWrapping="Wrap" />
                     </StackPanel>
                 </ScrollViewer>
             </Border>
 
-            <Border Grid.Column="1" Background="{StaticResource CometTerminalBrush}"
-                    BorderBrush="{StaticResource CometTerminalBorderBrush}" BorderThickness="1" CornerRadius="12">
+            <Border
+                Grid.Column="1"
+                Background="{StaticResource CometTerminalBrush}"
+                BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -108,75 +172,203 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal" Spacing="8">
-                            <TextBlock FontSize="15" FontWeight="SemiBold" Text="数据终端" />
+                        <StackPanel
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="8">
+                            <TextBlock
+                                FontSize="15"
+                                FontWeight="SemiBold"
+                                Text="数据终端" />
                         </StackPanel>
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5">
-                            <CheckBox x:Name="ReceiveHexCheckBox" VerticalAlignment="Center" Content="HEX 显示"
-                                      Click="ReceiveHexCheckBox_Click" />
-                            <CheckBox x:Name="TimestampCheckBox" VerticalAlignment="Center" Content="时间戳" IsChecked="True" />
-                            <CheckBox x:Name="AutoScrollCheckBox" VerticalAlignment="Center" Content="滚动"
-                                      IsChecked="True" ToolTipService.ToolTip="自动滚动到最新数据" />
-                            <Button x:Name="PresetPanelToggleButton" Width="34" Height="32" Padding="0"
-                                    AutomationProperties.Name="快捷指令面板开关"
-                                    Click="TogglePresetPanelButton_Click" ToolTipService.ToolTip="显示快捷指令">
-                                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="14" Glyph="&#xE8FD;" />
+                        <StackPanel
+                            Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="5">
+                            <CheckBox
+                                x:Name="ReceiveHexCheckBox"
+                                VerticalAlignment="Center"
+                                Click="ReceiveHexCheckBox_Click"
+                                Content="HEX 显示" />
+                            <CheckBox
+                                x:Name="TimestampCheckBox"
+                                VerticalAlignment="Center"
+                                Content="时间戳"
+                                IsChecked="True" />
+                            <CheckBox
+                                x:Name="AutoScrollCheckBox"
+                                VerticalAlignment="Center"
+                                Content="滚动"
+                                IsChecked="True"
+                                ToolTipService.ToolTip="自动滚动到最新数据" />
+                            <Button
+                                x:Name="PresetPanelToggleButton"
+                                Width="34"
+                                Height="32"
+                                Padding="0"
+                                AutomationProperties.Name="快捷指令面板开关"
+                                Click="TogglePresetPanelButton_Click"
+                                ToolTipService.ToolTip="显示快捷指令">
+                                <FontIcon
+                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                    FontSize="14"
+                                    Glyph="&#xE8FD;" />
                             </Button>
-                            <Button Width="34" Height="32" Padding="0"
-                                    Click="SaveLogButton_Click" ToolTipService.ToolTip="保存日志">
-                                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="14" Glyph="&#xE74E;" />
+                            <Button
+                                Width="34"
+                                Height="32"
+                                Padding="0"
+                                Click="SaveLogButton_Click"
+                                ToolTipService.ToolTip="保存日志">
+                                <FontIcon
+                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                    FontSize="14"
+                                    Glyph="&#xE74E;" />
                             </Button>
-                            <Button Width="34" Height="32" Padding="0"
-                                    Click="ClearTerminalButton_Click" ToolTipService.ToolTip="清空终端">
-                                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="14" Glyph="&#xE74D;" />
+                            <Button
+                                Width="34"
+                                Height="32"
+                                Padding="0"
+                                Click="ClearTerminalButton_Click"
+                                ToolTipService.ToolTip="清空终端">
+                                <FontIcon
+                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                    FontSize="14"
+                                    Glyph="&#xE74D;" />
                             </Button>
                         </StackPanel>
                     </Grid>
 
-                    <Border Grid.Row="1" BorderBrush="{StaticResource CometTerminalBorderBrush}" BorderThickness="0,1,0,1">
+                    <Border
+                        Grid.Row="1"
+                        BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                        BorderThickness="0,1,0,1">
                         <Grid>
-                                <controls:VirtualTerminalControl x:Name="TerminalView"
-                                                                 AutomationProperties.AutomationId="TerminalTextBox"
-                                                                 AutomationProperties.Name="终端内容"
-                                                             Background="Transparent"
-                                                             FontFamily="Cascadia Mono" FontSize="13"
-                                                             Foreground="{StaticResource CometTerminalTextBrush}" />
+                            <controls:VirtualTerminalControl
+                                x:Name="TerminalView"
+                                AutomationProperties.AutomationId="TerminalTextBox"
+                                AutomationProperties.Name="终端内容"
+                                Background="Transparent"
+                                FontFamily="Cascadia Mono"
+                                FontSize="13"
+                                Foreground="{StaticResource CometTerminalTextBrush}" />
 
-                            <StackPanel x:Name="EmptyTerminalPanel" HorizontalAlignment="Center"
-                                        VerticalAlignment="Center" IsHitTestVisible="False" Spacing="8">
-                                <FontIcon HorizontalAlignment="Center" FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                          FontSize="32" Foreground="#98A8B8" Glyph="&#xE756;" />
+                            <StackPanel
+                                x:Name="EmptyTerminalPanel"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                IsHitTestVisible="False"
+                                Spacing="8">
+                                <FontIcon
+                                    HorizontalAlignment="Center"
+                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                    FontSize="32"
+                                    Foreground="#98A8B8"
+                                    Glyph="&#xE756;" />
                                 <TextBlock Foreground="{StaticResource CometMutedBrush}" Text="等待串口数据..." />
                             </StackPanel>
                         </Grid>
                     </Border>
 
-                    <Grid Grid.Row="2" Padding="14" RowSpacing="10">
+                    <Grid
+                        Grid.Row="2"
+                        Padding="14"
+                        RowSpacing="10">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <Grid ColumnSpacing="8">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="4" />
+                                <RowDefinition Height="32" />
+                            </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110" />
-                                <ColumnDefinition Width="112" />
-                                <ColumnDefinition Width="150" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <CheckBox x:Name="SendHexCheckBox" Margin="0,20,0,0"
-                                      VerticalAlignment="Center" Content="HEX 发送" />
-                            <ComboBox x:Name="LineEndingComboBox" Grid.Column="1"
-                                      HorizontalAlignment="Stretch" Header="行尾" />
-                            <ToggleSwitch x:Name="RepeatSendToggle" Grid.Column="2" VerticalAlignment="Bottom"
-                                          Header="循环发送" OffContent="关" OnContent="开"
-                                          Toggled="RepeatSendToggle_Toggled" />
-                            <NumberBox x:Name="RepeatIntervalNumberBox" Grid.Column="3"
-                                       HorizontalAlignment="Stretch" Header="周期 (ms)"
-                                       LargeChange="100" Minimum="20" SmallChange="10"
-                                       SpinButtonPlacementMode="Compact" Value="1000"
-                                       ValueChanged="RepeatIntervalNumberBox_ValueChanged" />
+                            <CheckBox
+                                x:Name="SendHexCheckBox"
+                                Grid.Row="2"
+                                MinWidth="0"
+                                VerticalAlignment="Center"
+                                Content="HEX 发送" />
+                            <TextBlock
+                                Grid.Column="2"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="行尾" />
+                            <ComboBox
+                                x:Name="LineEndingComboBox"
+                                Grid.Row="2"
+                                Grid.Column="2"
+                                Width="112"
+                                Height="32"
+                                MinHeight="0"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Center" />
+                            <TextBlock
+                                Grid.Column="4"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="循环发送" />
+                            <ToggleSwitch
+                                x:Name="RepeatSendToggle"
+                                Grid.Row="2"
+                                Grid.Column="4"
+                                Width="66"
+                                Height="32"
+                                MinWidth="0"
+                                VerticalAlignment="Center"
+                                OffContent="关"
+                                OnContent="开"
+                                Toggled="RepeatSendToggle_Toggled">
+                                <ToggleSwitch.RenderTransform>
+                                    <TranslateTransform Y="-1" />
+                                </ToggleSwitch.RenderTransform>
+                            </ToggleSwitch>
+                            <TextBlock
+                                Grid.Column="6"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Text="周期 (ms)" />
+                            <NumberBox
+                                x:Name="RepeatIntervalNumberBox"
+                                Grid.Row="2"
+                                Grid.Column="6"
+                                Width="112"
+                                Height="32"
+                                MinHeight="0"
+                                VerticalAlignment="Center"
+                                LargeChange="100"
+                                Minimum="20"
+                                SmallChange="10"
+                                SpinButtonPlacementMode="Compact"
+                                ValueChanged="RepeatIntervalNumberBox_ValueChanged"
+                                Value="1000" />
+                            <Button
+                                x:Name="ReceiveRecordingButton"
+                                Grid.Row="2"
+                                Grid.Column="8"
+                                Width="88"
+                                Height="32"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="开始或停止原始数据录制"
+                                Click="ReceiveRecordingButton_Click"
+                                Content="数据录制" />
                         </Grid>
 
                         <Grid Grid.Row="1" ColumnSpacing="10">
@@ -184,27 +376,45 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="96" />
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="SendTextBox" MinHeight="72" AcceptsReturn="True"
-                                     FontFamily="Cascadia Mono" FontSize="13"
-                                     PlaceholderText="输入文本（支持 \r、\n、\t、\xNN），或输入 HEX：AA 01 0D 0A" TextWrapping="Wrap" />
-                            <Button x:Name="SendButton" Grid.Column="1" HorizontalAlignment="Stretch"
-                                    VerticalAlignment="Stretch" Click="SendButton_Click"
-                                    Style="{StaticResource AccentButtonStyle}">
+                            <TextBox
+                                x:Name="SendTextBox"
+                                MinHeight="72"
+                                AcceptsReturn="True"
+                                FontFamily="Cascadia Mono"
+                                FontSize="13"
+                                PlaceholderText="输入文本（支持 \r、\n、\t、\xNN），或输入 HEX：AA 01 0D 0A"
+                                TextWrapping="Wrap" />
+                            <Button
+                                x:Name="SendButton"
+                                Grid.Column="1"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch"
+                                Click="SendButton_Click"
+                                Style="{StaticResource AccentButtonStyle}">
                                 <Button.KeyboardAccelerators>
                                     <KeyboardAccelerator Key="Enter" Modifiers="Control" />
                                 </Button.KeyboardAccelerators>
                                 <StackPanel Spacing="4">
-                                    <FontIcon HorizontalAlignment="Center" FontFamily="{StaticResource SymbolThemeFontFamily}" Glyph="&#xE724;" />
+                                    <FontIcon
+                                        HorizontalAlignment="Center"
+                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                        Glyph="&#xE724;" />
                                     <TextBlock HorizontalAlignment="Center" Text="发送" />
                                 </StackPanel>
                             </Button>
                         </Grid>
                     </Grid>
 
-                    <Border x:Name="PresetPanel" Grid.Column="1" Grid.RowSpan="3" Width="350"
-                            Visibility="Collapsed"
-                            Padding="12" Background="{StaticResource CometSubtleBrush}"
-                            BorderBrush="{StaticResource CometTerminalBorderBrush}" BorderThickness="1,0,0,0">
+                    <Border
+                        x:Name="PresetPanel"
+                        Grid.RowSpan="3"
+                        Grid.Column="1"
+                        Width="350"
+                        Padding="12"
+                        Background="{StaticResource CometSubtleBrush}"
+                        BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                        BorderThickness="1,0,0,0"
+                        Visibility="Collapsed">
                         <Grid RowSpacing="10">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -219,32 +429,44 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock FontSize="14" FontWeight="SemiBold" Text="快捷指令" />
-                                    <TextBlock x:Name="PresetCountText" FontSize="11"
-                                               Foreground="{StaticResource CometMutedBrush}" Text="0 条预设" />
+                                    <TextBlock
+                                        FontSize="14"
+                                        FontWeight="SemiBold"
+                                        Text="快捷指令" />
+                                    <TextBlock
+                                        x:Name="PresetCountText"
+                                        FontSize="11"
+                                        Foreground="{StaticResource CometMutedBrush}"
+                                        Text="0 条预设" />
                                 </StackPanel>
-                                <ToggleButton x:Name="PresetCycleToggleButton"
-                                              Grid.Column="1"
-                                              Height="28"
-                                              Padding="10,2"
-                                              VerticalAlignment="Center"
-                                              AutomationProperties.AutomationId="PresetSequenceToggleButton"
-                                              AutomationProperties.Name="循环发送快捷指令"
-                                              Click="PresetCycleToggleButton_Click"
-                                              Content="循环发送" />
-                                <Button x:Name="PresetReorderModeButton"
-                                        Grid.Column="2"
-                                        Height="28"
-                                        Padding="10,2"
-                                        VerticalAlignment="Center"
-                                        Click="PresetReorderModeButton_Click"
-                                        Content="编辑排序" />
+                                <ToggleButton
+                                    x:Name="PresetCycleToggleButton"
+                                    Grid.Column="1"
+                                    Height="28"
+                                    Padding="10,2"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.AutomationId="PresetSequenceToggleButton"
+                                    AutomationProperties.Name="循环发送快捷指令"
+                                    Click="PresetCycleToggleButton_Click"
+                                    Content="循环发送" />
+                                <Button
+                                    x:Name="PresetReorderModeButton"
+                                    Grid.Column="2"
+                                    Height="28"
+                                    Padding="10,2"
+                                    VerticalAlignment="Center"
+                                    Click="PresetReorderModeButton_Click"
+                                    Content="编辑排序" />
                             </Grid>
 
-                            <Border x:Name="PresetEditorPanel" Grid.Row="1" Padding="8"
-                                    Background="{StaticResource CometSurfaceBrush}"
-                                    BorderBrush="{StaticResource CometTerminalBorderBrush}"
-                                    BorderThickness="1" CornerRadius="7">
+                            <Border
+                                x:Name="PresetEditorPanel"
+                                Grid.Row="1"
+                                Padding="8"
+                                Background="{StaticResource CometSurfaceBrush}"
+                                BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="7">
                                 <Grid RowSpacing="6">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
@@ -255,11 +477,16 @@
                                             <ColumnDefinition Width="96" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="NewPresetNameTextBox" MinHeight="30"
-                                                 PlaceholderText="名称（可选）" />
-                                        <TextBox x:Name="NewPresetCommandTextBox" Grid.Column="1"
-                                                 MinHeight="30" FontFamily="Cascadia Mono"
-                                                 PlaceholderText="输入指令内容" />
+                                        <TextBox
+                                            x:Name="NewPresetNameTextBox"
+                                            MinHeight="30"
+                                            PlaceholderText="名称（可选）" />
+                                        <TextBox
+                                            x:Name="NewPresetCommandTextBox"
+                                            Grid.Column="1"
+                                            MinHeight="30"
+                                            FontFamily="Cascadia Mono"
+                                            PlaceholderText="输入指令内容" />
                                     </Grid>
                                     <Grid Grid.Row="1" ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
@@ -267,20 +494,33 @@
                                             <ColumnDefinition Width="88" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <CheckBox x:Name="NewPresetHexCheckBox" VerticalAlignment="Center" Content="HEX 发送" />
-                                        <ComboBox x:Name="NewPresetLineEndingComboBox" Grid.Column="1"
-                                                  MinHeight="30" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                        <CheckBox
+                                            x:Name="NewPresetHexCheckBox"
+                                            VerticalAlignment="Center"
+                                            Content="HEX 发送" />
+                                        <ComboBox
+                                            x:Name="NewPresetLineEndingComboBox"
+                                            Grid.Column="1"
+                                            MinHeight="30"
+                                            HorizontalAlignment="Stretch"
+                                            SelectedIndex="0">
                                             <ComboBoxItem Content="无" />
                                             <ComboBoxItem Content="CRLF" />
                                             <ComboBoxItem Content="CR" />
                                             <ComboBoxItem Content="LF" />
                                         </ComboBox>
-                                        <Button Grid.Column="2" Height="30" HorizontalAlignment="Stretch"
-                                                Click="AddPresetButton_Click"
-                                                IsEnabled="{x:Bind ViewModel.CommandPresets.CanAdd, Mode=OneWay}"
-                                                Style="{StaticResource AccentButtonStyle}">
+                                        <Button
+                                            Grid.Column="2"
+                                            Height="30"
+                                            HorizontalAlignment="Stretch"
+                                            Click="AddPresetButton_Click"
+                                            IsEnabled="{x:Bind ViewModel.CommandPresets.CanAdd, Mode=OneWay}"
+                                            Style="{StaticResource AccentButtonStyle}">
                                             <StackPanel Orientation="Horizontal" Spacing="7">
-                                                <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="13" Glyph="&#xE710;" />
+                                                <FontIcon
+                                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                                    FontSize="13"
+                                                    Glyph="&#xE710;" />
                                                 <TextBlock Text="添加" />
                                             </StackPanel>
                                         </Button>
@@ -289,14 +529,19 @@
                             </Border>
 
                             <Grid Grid.Row="2" Margin="0,0,-8,0">
-                                <ListView x:Name="PresetList" Padding="0,0,16,0" Background="Transparent"
-                                          ItemsSource="{x:Bind ViewModel.CommandPresets.Items, Mode=OneWay}"
-                                          DragItemsCompleted="PresetList_DragItemsCompleted"
-                                          DragItemsStarting="PresetList_DragItemsStarting"
-                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                          ScrollViewer.VerticalScrollBarVisibility="Visible"
-                                          ScrollViewer.VerticalScrollMode="Enabled"
-                                          IsItemClickEnabled="False" IsTabStop="False" SelectionMode="None">
+                                <ListView
+                                    x:Name="PresetList"
+                                    Padding="0,0,16,0"
+                                    Background="Transparent"
+                                    DragItemsCompleted="PresetList_DragItemsCompleted"
+                                    DragItemsStarting="PresetList_DragItemsStarting"
+                                    IsItemClickEnabled="False"
+                                    IsTabStop="False"
+                                    ItemsSource="{x:Bind ViewModel.CommandPresets.Items, Mode=OneWay}"
+                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                    ScrollViewer.VerticalScrollBarVisibility="Visible"
+                                    ScrollViewer.VerticalScrollMode="Enabled"
+                                    SelectionMode="None">
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -306,9 +551,12 @@
                                     </ListView.ItemContainerStyle>
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Padding="6" Background="{StaticResource CometSurfaceBrush}"
-                                                    BorderBrush="{StaticResource CometTerminalBorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6">
+                                            <Border
+                                                Padding="6"
+                                                Background="{StaticResource CometSurfaceBrush}"
+                                                BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6">
                                                 <Grid RowSpacing="4">
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto" />
@@ -319,15 +567,21 @@
                                                             <ColumnDefinition Width="90" />
                                                             <ColumnDefinition Width="*" />
                                                         </Grid.ColumnDefinitions>
-                                                        <TextBox MinHeight="30" FontSize="12" FontWeight="SemiBold"
-                                                                 Text="{Binding Name, Mode=OneWay}"
-                                                                 LostFocus="PresetNameTextBox_LostFocus"
-                                                                 ToolTipService.ToolTip="可直接修改名称" />
-                                                        <TextBox Grid.Column="1" MinHeight="30"
-                                                                 FontFamily="Cascadia Mono" FontSize="11"
-                                                                 Text="{Binding Command, Mode=OneWay}"
-                                                                 LostFocus="PresetCommandTextBox_LostFocus"
-                                                                 ToolTipService.ToolTip="可直接修改指令内容" />
+                                                        <TextBox
+                                                            MinHeight="30"
+                                                            FontSize="12"
+                                                            FontWeight="SemiBold"
+                                                            LostFocus="PresetNameTextBox_LostFocus"
+                                                            Text="{Binding Name, Mode=OneWay}"
+                                                            ToolTipService.ToolTip="可直接修改名称" />
+                                                        <TextBox
+                                                            Grid.Column="1"
+                                                            MinHeight="30"
+                                                            FontFamily="Cascadia Mono"
+                                                            FontSize="11"
+                                                            LostFocus="PresetCommandTextBox_LostFocus"
+                                                            Text="{Binding Command, Mode=OneWay}"
+                                                            ToolTipService.ToolTip="可直接修改指令内容" />
                                                     </Grid>
                                                     <Grid Grid.Row="1" ColumnSpacing="5">
                                                         <Grid.ColumnDefinitions>
@@ -337,37 +591,70 @@
                                                             <ColumnDefinition Width="Auto" />
                                                             <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
-                                                        <Border Width="24" Height="26" Margin="0,0,2,0"
+                                                        <Border
+                                                            Width="24"
+                                                            Height="26"
+                                                            Margin="0,0,2,0"
+                                                            VerticalAlignment="Center"
+                                                            AutomationProperties.Name="拖动调整顺序"
+                                                            Background="Transparent"
+                                                            PointerCanceled="PresetDragHandle_PointerEnded"
+                                                            PointerPressed="PresetDragHandle_PointerPressed"
+                                                            PointerReleased="PresetDragHandle_PointerEnded"
+                                                            ToolTipService.ToolTip="点击“编辑排序”后拖动">
+                                                            <FontIcon
+                                                                HorizontalAlignment="Center"
                                                                 VerticalAlignment="Center"
-                                                                Background="Transparent"
-                                                                AutomationProperties.Name="拖动调整顺序"
-                                                                PointerCanceled="PresetDragHandle_PointerEnded"
-                                                                PointerPressed="PresetDragHandle_PointerPressed"
-                                                                PointerReleased="PresetDragHandle_PointerEnded"
-                                                                ToolTipService.ToolTip="点击“编辑排序”后拖动">
-                                                            <FontIcon HorizontalAlignment="Center"
-                                                                      VerticalAlignment="Center"
-                                                                      FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                                                      FontSize="12" Foreground="{StaticResource CometMutedBrush}"
-                                                                      Glyph="&#xE700;" />
+                                                                FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                                                FontSize="12"
+                                                                Foreground="{StaticResource CometMutedBrush}"
+                                                                Glyph="&#xE700;" />
                                                         </Border>
-                                                        <Border Grid.Column="1" Padding="6,2" VerticalAlignment="Center"
-                                                                HorizontalAlignment="Left"
-                                                                Background="{StaticResource CometPresetBadgeBrush}" CornerRadius="4">
-                                                            <TextBlock FontFamily="Cascadia Mono" FontSize="9"
-                                                                       Foreground="{StaticResource CometMutedBrush}"
-                                                                       Text="{Binding ModeLabel}" />
+                                                        <Border
+                                                            Grid.Column="1"
+                                                            Padding="6,2"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Center"
+                                                            Background="{StaticResource CometPresetBadgeBrush}"
+                                                            CornerRadius="4">
+                                                            <TextBlock
+                                                                FontFamily="Cascadia Mono"
+                                                                FontSize="9"
+                                                                Foreground="{StaticResource CometMutedBrush}"
+                                                                Text="{Binding ModeLabel}" />
                                                         </Border>
-                                                        <Button Grid.Column="2" Height="26" Padding="8,2"
-                                                                Content="载入" Tag="{Binding Id}"
-                                                                Click="LoadPresetButton_Click" />
-                                                        <Button Grid.Column="3" Width="28" Height="26" Padding="0" Tag="{Binding Id}"
-                                                                Click="SendPresetButton_Click" ToolTipService.ToolTip="立即发送">
-                                                            <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="11" Glyph="&#xE724;" />
+                                                        <Button
+                                                            Grid.Column="2"
+                                                            Height="26"
+                                                            Padding="8,2"
+                                                            Click="LoadPresetButton_Click"
+                                                            Content="载入"
+                                                            Tag="{Binding Id}" />
+                                                        <Button
+                                                            Grid.Column="3"
+                                                            Width="28"
+                                                            Height="26"
+                                                            Padding="0"
+                                                            Click="SendPresetButton_Click"
+                                                            Tag="{Binding Id}"
+                                                            ToolTipService.ToolTip="立即发送">
+                                                            <FontIcon
+                                                                FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                                                FontSize="11"
+                                                                Glyph="&#xE724;" />
                                                         </Button>
-                                                        <Button Grid.Column="4" Width="28" Height="26" Padding="0" Tag="{Binding Id}"
-                                                                Click="DeletePresetButton_Click" ToolTipService.ToolTip="删除预设">
-                                                            <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="11" Glyph="&#xE74D;" />
+                                                        <Button
+                                                            Grid.Column="4"
+                                                            Width="28"
+                                                            Height="26"
+                                                            Padding="0"
+                                                            Click="DeletePresetButton_Click"
+                                                            Tag="{Binding Id}"
+                                                            ToolTipService.ToolTip="删除预设">
+                                                            <FontIcon
+                                                                FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                                                FontSize="11"
+                                                                Glyph="&#xE74D;" />
                                                         </Button>
                                                     </Grid>
                                                 </Grid>
@@ -376,10 +663,16 @@
                                     </ListView.ItemTemplate>
                                 </ListView>
 
-                                <TextBlock x:Name="EmptyPresetText" Margin="0,0,8,0" HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" Foreground="{StaticResource CometMutedBrush}"
-                                           Text="暂无快捷指令，请在上方输入并添加" TextAlignment="Center"
-                                           TextWrapping="Wrap" Visibility="Collapsed" />
+                                <TextBlock
+                                    x:Name="EmptyPresetText"
+                                    Margin="0,0,8,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Foreground="{StaticResource CometMutedBrush}"
+                                    Text="暂无快捷指令，请在上方输入并添加"
+                                    TextAlignment="Center"
+                                    TextWrapping="Wrap"
+                                    Visibility="Collapsed" />
                             </Grid>
                         </Grid>
                     </Border>
@@ -392,30 +685,60 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <StackPanel VerticalAlignment="Center" Orientation="Horizontal" Spacing="16">
-                <Border Padding="8,3" VerticalAlignment="Center"
-                        Background="{StaticResource CometSurfaceBrush}"
-                        BorderBrush="{StaticResource CometTerminalBorderBrush}"
-                        BorderThickness="1" CornerRadius="10">
+            <StackPanel
+                VerticalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="16">
+                <Border
+                    Padding="8,3"
+                    VerticalAlignment="Center"
+                    Background="{StaticResource CometSurfaceBrush}"
+                    BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10">
                     <StackPanel Orientation="Horizontal" Spacing="7">
-                        <Ellipse x:Name="ConnectionDot" Width="7" Height="7" VerticalAlignment="Center"
-                                 Fill="{ThemeResource TextFillColorTertiaryBrush}" />
-                        <TextBlock x:Name="FooterConnectionText" VerticalAlignment="Center"
-                                   FontSize="11" Text="未连接" />
+                        <Ellipse
+                            x:Name="ConnectionDot"
+                            Width="7"
+                            Height="7"
+                            VerticalAlignment="Center"
+                            Fill="{ThemeResource TextFillColorTertiaryBrush}" />
+                        <TextBlock
+                            x:Name="FooterConnectionText"
+                            VerticalAlignment="Center"
+                            FontSize="11"
+                            Text="未连接" />
                     </StackPanel>
                 </Border>
-                <TextBlock x:Name="ReceiveCountText" VerticalAlignment="Center"
-                           FontFamily="Cascadia Mono" FontSize="11" Text="RX  0 B" />
-                <TextBlock x:Name="SendCountText" VerticalAlignment="Center"
-                           FontFamily="Cascadia Mono" FontSize="11" Text="TX  0 B" />
+                <TextBlock
+                    x:Name="ReceiveCountText"
+                    VerticalAlignment="Center"
+                    FontFamily="Cascadia Mono"
+                    FontSize="11"
+                    Text="RX  0 B" />
+                <TextBlock
+                    x:Name="SendCountText"
+                    VerticalAlignment="Center"
+                    FontFamily="Cascadia Mono"
+                    FontSize="11"
+                    Text="TX  0 B" />
             </StackPanel>
-            <TextBlock x:Name="TerminalBufferStatusText" Grid.Column="1" VerticalAlignment="Center" FontSize="11"
-                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                       Text="显示 0 / 会话 0" />
+            <TextBlock
+                x:Name="TerminalBufferStatusText"
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                FontSize="11"
+                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                Text="显示 0 / 会话 0" />
         </Grid>
 
-        <InfoBar x:Name="MessageBar" Grid.Row="0" Margin="310,12,18,0"
-                 HorizontalAlignment="Stretch" VerticalAlignment="Top"
-                 IsClosable="True" IsOpen="False" />
+        <InfoBar
+            x:Name="MessageBar"
+            Grid.Row="0"
+            Margin="310,12,18,0"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Top"
+            IsClosable="True"
+            IsOpen="False" />
     </Grid>
 </Page>

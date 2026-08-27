@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <UserControl
     x:Class="Comet.Controls.VirtualTerminalControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -9,12 +9,13 @@
     SizeChanged="VirtualTerminalControl_SizeChanged">
 
     <Grid x:Name="RootGrid" Background="Transparent">
-        <ScrollViewer x:Name="ScrollHost"
-                      HorizontalScrollBarVisibility="Disabled"
-                      HorizontalScrollMode="Disabled"
-                      VerticalScrollBarVisibility="Visible"
-                      VerticalScrollMode="Enabled"
-                      ViewChanged="ScrollHost_ViewChanged">
+        <ScrollViewer
+            x:Name="ScrollHost"
+            HorizontalScrollBarVisibility="Disabled"
+            HorizontalScrollMode="Disabled"
+            VerticalScrollBarVisibility="Visible"
+            VerticalScrollMode="Enabled"
+            ViewChanged="ScrollHost_ViewChanged">
             <ItemsRepeater x:Name="LineRepeater" ElementPrepared="LineRepeater_ElementPrepared">
                 <ItemsRepeater.Layout>
                     <StackLayout Orientation="Vertical" Spacing="0" />
@@ -27,11 +28,16 @@
             </ItemsRepeater>
         </ScrollViewer>
 
-        <TextBox x:Name="InputProxy"
-                 Width="1" Height="1" MinWidth="0" MinHeight="0"
-                 HorizontalAlignment="Left" VerticalAlignment="Top"
-                 AcceptsReturn="True"
-                 Opacity="0"
-                 TextChanged="InputProxy_TextChanged" />
+        <TextBox
+            x:Name="InputProxy"
+            Width="1"
+            Height="1"
+            MinWidth="0"
+            MinHeight="0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            AcceptsReturn="True"
+            Opacity="0"
+            TextChanged="InputProxy_TextChanged" />
     </Grid>
 </UserControl>

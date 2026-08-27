@@ -33,10 +33,10 @@ Comet 是基于 WinUI 3 与 .NET 10 开发的桌面串口调试工具。项目�
 | 串口连接 | 端口枚举、波特率、数据位、停止位、校验位、流控制、DTR、RTS |
 | 端口识别 | 显示 Windows 提供的设备名称或型号，过滤 `VID_xxxx`、`PID_xxxx` |
 | 数据发送 | 文本、HEX、底部循环发送、快捷指令列表循环发送、内容区键入同步发送 |
-| 数据接收 | UTF-8、GBK、ASCII 流式解码，文本与 HEX 双视图 |
+| 数据接收 | UTF-8、GBK、ASCII 流式解码，文本与 HEX 双视图，原始 RX 二进制持续录制 |
 | 终端显示 | 时间戳、RX/TX/SYS 前缀、自动换行、自动滚动、多行选择与复制 |
 | 大数据处理 | 接收队列、分批处理、完整会话/虚拟化视口分离、增量行索引与渲染 |
-| 辅助功能 | 快捷指令持久化与 JSON 备份、完整格式化会话日志保存、RX/TX 字节计数 |
+| 辅助功能 | 快捷指令持久化与 JSON 备份、格式化日志保存、原始 `.bin` 录制、RX/TX 字节计数 |
 | 界面 | 固定浅色主题，适配 Windows 10/11 的符号字体和任务栏图标 |
 
 ## 快速使用
@@ -144,6 +144,17 @@ HEX 显示规则：
 
 接收时会同时生成文本表示和 HEX 表示，分别追加到两个完整的格式化会话。程序不长期保存每个接收批次的原始字节数组。
 
+### 原始数据录制
+
+连接串口后，点击发送区右侧的“开始录制”并选择 `.bin` 文件。文件选择完成后，Comet 从下一批新到达的 RX 数据开始录制；再次点击“停止录制”、断开串口或关闭窗口时停止并刷新文件。
+
+- 录制直接接收 `SerialPortService` 产生的原始字节，不读取终端内容。
+- 开始录制前已经显示的历史内容不会写入文件。
+- 文本/HEX 显示、字符编码、时间戳、换行规范化、清空内容和滚动位置都不会改变录制数据。
+- 文件只包含设备回传的 RX 字节，不包含 Comet 发送的 TX、时间信息或方向标识。
+- 后台单写入线程按接收顺序写盘；界面显示变慢时，录制仍独立进行。
+- 写盘失败或后台队列耗尽时会明确停止并提示，不能静默丢弃后继续显示为录制中。
+
 ### 时间戳与方向
 
 时间戳默认开启，详细条目格式为：
@@ -186,7 +197,7 @@ HH:mm:ss.fff  SYS  状态
 - “清空终端”会清空文本和 HEX 的完整会话存储、虚拟行索引、待渲染内容，并把 RX/TX 计数重置为零；不会断开串口。
 - 清空操作不会丢弃接收队列中尚未交给 UI 的数据，也不会重置当前连接的流式解码状态；这些数据随后仍可能显示。
 - “保存日志”将当前显示模式下自上次清空以来的完整格式化会话保存为 UTF-8 文本文件。
-- 完整会话存储保存文本/HEX 的显示结果，不等同于原始二进制抓包或后台持续写盘。
+- “原始数据录制”保存开始录制之后的新 RX 字节；它与格式化会话日志是两条独立路径。
 
 ## 架构与设计
 
@@ -198,7 +209,8 @@ Comet 采用两个纯 C# 项目的分层 MVVM：`Comet.Core` 保存不依赖 Win
 SerialPort.DataReceived
   -> SerialPortService 读取字节
   -> ConnectionViewModel 转发接收事件
-  -> ConcurrentQueue<byte[]>
+  -> RawReceiveRecordingService 后台写入 .bin（仅录制开启时）
+  -> ConcurrentQueue<byte[]>（终端显示路径）
   -> DispatcherQueue 低优先级批处理
   -> TerminalViewModel / StreamingTextDecoder
   -> TerminalEntryModel
@@ -259,7 +271,7 @@ SerialPort.DataReceived
 - 读取缓冲区为 16 KiB，写入缓冲区为 4 KiB。
 - 读取超时为 500 ms，写入超时为 1000 ms。
 - 关闭前解除 `DataReceived` 订阅，再关闭并释放端口。
-- 窗口 `Closed` 和页面 `Unloaded` 都进入同一个幂等 `Shutdown()`；先停止当前定时发送，再显式关闭并释放串口，重复回调不会重复释放。
+- 窗口 `Closed` 和页面 `Unloaded` 都进入同一个幂等 `Shutdown()`；停止定时发送并关闭串口数据源后，排空原始录制队列、刷新文件并释放资源，重复回调不会重复释放。
 - 读取过程中的 I/O、无效状态和访问异常转换为页面错误提示。
 - 连接与断开时重置流式文本解码器；清空显示内容不会重置串口连接。
 
@@ -273,13 +285,15 @@ SerialPort.DataReceived
 
 | 组件 | 职责 |
 | --- | --- |
-| `MainViewModel` | 聚合连接、终端、外观、发送、快捷指令和循环发送 ViewModel |
+| `MainViewModel` | 聚合连接、终端、外观、发送、录制、快捷指令和循环发送 ViewModel |
 | `ConnectionViewModel` | 端口集合、连接状态以及串口服务协调 |
 | `TerminalViewModel` | 完整会话、流式解码和 RX/TX 计数 |
 | `TerminalAppearanceViewModel` | UI 无关的终端字体名称、字号范围和默认值 |
 | `TransmissionViewModel` | 向 UI 暴露纯发送引擎 |
 | `CommandPresetsViewModel` | 快捷指令集合、编辑、顺序保存、JSON 备份和持久化协调 |
+| `ReceiveRecordingViewModel` | 原始 RX 录制启停、文件路径和失败通知 |
 | `ScheduledSendViewModel` | 底部单载荷循环与快捷指令列表循环的后台调度、互斥状态和并发写入保护 |
+| `RawReceiveRecordingService` | 有界接收队列、后台顺序写盘、刷新关闭和写入错误处理 |
 | `SerialPayloadEngine` | 文本转义、HEX、行尾和内容区输入的纯 C# 解释规则 |
 | `SerialPortService` | 枚举、打开、关闭、读取和写入串口 |
 | `StreamingTextDecoder` | 跨批次文本解码和无效字节替换 |
@@ -333,7 +347,7 @@ SerialPort.DataReceived
 
 - 原始接收队列当前没有固定容量；若输入长期快于 UI 处理速度，待处理数据会增加内存占用。
 - 完整会话和活动虚拟文档当前位于内存，同时维护文本和 HEX 格式；内容不会按 UI 容量淘汰，长时间高速接收会持续增加内存占用。
-- 没有原始二进制抓包或后台持续写盘功能。
+- 原始录制只保存 RX 字节，不生成带时间戳的抓包容器，也不记录 TX。
 - 内容区不提供本地回显，显示结果依赖设备返回。
 - 已有快捷指令只能直接修改名称和内容，不能直接修改模式与行尾。
 - 当前界面固定为浅色主题。
@@ -353,6 +367,7 @@ Comet/
 │  ├─ Comet.Core/                  纯 C# 核心类库（不依赖 WinUI）
 │  │  ├─ Models/                   终端、预设和端口模型
 │  │  ├─ Presets/                  快捷指令 JSON 备份格式与校验
+│  │  ├─ Recording/                原始 RX 后台录制
 │  │  ├─ Services/                 串口、存储和计时器契约
 │  │  ├─ Terminal/                 双视图会话与虚拟行文档
 │  │  ├─ Text/                     编码、转义和 HEX 规则
