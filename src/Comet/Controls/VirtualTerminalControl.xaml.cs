@@ -28,6 +28,7 @@ public sealed partial class VirtualTerminalControl : UserControl
     private int _selectionActive;
     private double _characterWidth = 8;
     private double _lineHeight = 19;
+    private double _caretHeight = 18;
     private bool _isInputEnabled;
     private bool _autoScroll = true;
     private bool _isClearingInputProxy;
@@ -273,7 +274,12 @@ public sealed partial class VirtualTerminalControl : UserControl
         };
         probe.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
         _characterWidth = Math.Max(1, probe.DesiredSize.Width / 100.0);
-        _lineHeight = Math.Max(1, Math.Ceiling(probe.DesiredSize.Height + 1));
+
+        // DesiredSize contains the font's complete line box, including ascenders,
+        // descenders, and font-specific leading. The row adds one DIP of breathing room;
+        // the presenter centers the caret's measured line box inside that row.
+        _caretHeight = Math.Max(1, probe.DesiredSize.Height);
+        _lineHeight = Math.Max(_caretHeight, Math.Ceiling(_caretHeight + 1));
     }
 
     private void ReflowForCurrentWidth()
@@ -430,6 +436,7 @@ public sealed partial class VirtualTerminalControl : UserControl
         presenter.Update(
             line.Text,
             _lineHeight,
+            _caretHeight,
             HORIZONTAL_PADDING,
             _characterWidth,
             FontFamily,

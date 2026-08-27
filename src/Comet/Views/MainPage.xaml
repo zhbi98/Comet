@@ -732,13 +732,28 @@
                 Text="显示 0 / 会话 0" />
         </Grid>
 
-        <InfoBar
-            x:Name="MessageBar"
-            Grid.Row="0"
-            Margin="310,12,18,0"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Top"
-            IsClosable="True"
-            IsOpen="False" />
+        <!--  Compact notifications stay close to terminal actions without covering the settings panel.  -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="286" />
+                <ColumnDefinition Width="14" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <InfoBar
+                x:Name="MessageBar"
+                Grid.Column="2"
+                MinWidth="320"
+                MaxWidth="460"
+                Margin="0,52,12,0"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Foreground="{StaticResource CometTerminalTextBrush}"
+                BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                IsClosable="True"
+                IsOpen="False" />
+        </Grid>
     </Grid>
 </Page>

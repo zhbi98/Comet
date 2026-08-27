@@ -32,7 +32,7 @@ public sealed class TerminalLinePresenter : Grid
     {
         Width = 1.5,
         HorizontalAlignment = HorizontalAlignment.Left,
-        VerticalAlignment = VerticalAlignment.Stretch,
+        VerticalAlignment = VerticalAlignment.Top,
         IsHitTestVisible = false,
         Visibility = Visibility.Collapsed
     };
@@ -49,6 +49,7 @@ public sealed class TerminalLinePresenter : Grid
     internal void Update(
         string text,
         double lineHeight,
+        double caretHeight,
         double horizontalPadding,
         double characterWidth,
         FontFamily fontFamily,
@@ -67,11 +68,17 @@ public sealed class TerminalLinePresenter : Grid
         _text.Foreground = foreground;
         _text.Margin = new Thickness(horizontalPadding, 0, horizontalPadding, 0);
         _caret.Fill = foreground;
+
+        // Match the caret to the measured font line box instead of applying fixed
+        // insets. Centering that box keeps the caret aligned when the font or size changes.
+        var resolvedCaretHeight = Math.Clamp(caretHeight, 1, lineHeight);
+        var caretTop = Math.Max(0, (lineHeight - resolvedCaretHeight) / 2);
+        _caret.Height = resolvedCaretHeight;
         _caret.Margin = new Thickness(
             horizontalPadding + (Math.Max(0, caretCell) * characterWidth),
-            2,
+            caretTop,
             0,
-            2);
+            0);
         _caret.Visibility = showCaret ? Visibility.Visible : Visibility.Collapsed;
 
         var selectedCells = Math.Max(0, selectionEndCell - selectionStartCell);
