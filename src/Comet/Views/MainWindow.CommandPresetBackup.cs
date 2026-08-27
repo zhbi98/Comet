@@ -56,6 +56,7 @@ public sealed partial class MainWindow
                 return;
             }
 
+            StopPendingPresetCycleSending();
             var importedCount = _viewModel.CommandPresets.ImportBackup(json);
             await ShowPresetBackupMessageAsync("导入完成", $"已恢复 {importedCount} 条快捷指令。");
         }
@@ -126,6 +127,14 @@ public sealed partial class MainWindow
         if (RootFrame.Content is MainPage mainPage)
         {
             mainPage.ExitCommandPresetReorderMode();
+        }
+    }
+
+    private void StopPendingPresetCycleSending()
+    {
+        if (RootFrame.Content is MainPage mainPage)
+        {
+            mainPage.StopCommandPresetCycleSending();
         }
     }
 

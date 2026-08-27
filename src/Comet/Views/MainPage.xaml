@@ -216,14 +216,24 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel VerticalAlignment="Center" Spacing="2">
                                     <TextBlock FontSize="14" FontWeight="SemiBold" Text="快捷指令" />
                                     <TextBlock x:Name="PresetCountText" FontSize="11"
                                                Foreground="{StaticResource CometMutedBrush}" Text="0 条预设" />
                                 </StackPanel>
+                                <ToggleButton x:Name="PresetCycleToggleButton"
+                                              Grid.Column="1"
+                                              Height="28"
+                                              Padding="10,2"
+                                              VerticalAlignment="Center"
+                                              AutomationProperties.AutomationId="PresetSequenceToggleButton"
+                                              AutomationProperties.Name="循环发送快捷指令"
+                                              Click="PresetCycleToggleButton_Click"
+                                              Content="循环发送" />
                                 <Button x:Name="PresetReorderModeButton"
-                                        Grid.Column="1"
+                                        Grid.Column="2"
                                         Height="28"
                                         Padding="10,2"
                                         VerticalAlignment="Center"
@@ -231,7 +241,8 @@
                                         Content="编辑排序" />
                             </Grid>
 
-                            <Border Grid.Row="1" Padding="8" Background="{StaticResource CometSurfaceBrush}"
+                            <Border x:Name="PresetEditorPanel" Grid.Row="1" Padding="8"
+                                    Background="{StaticResource CometSurfaceBrush}"
                                     BorderBrush="{StaticResource CometTerminalBorderBrush}"
                                     BorderThickness="1" CornerRadius="7">
                                 <Grid RowSpacing="6">

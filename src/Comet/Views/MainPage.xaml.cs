@@ -60,8 +60,8 @@ public sealed partial class MainPage : Page
         };
         ViewModel.Connection.BytesReceived += SerialPort_BytesReceived;
         ViewModel.Connection.ErrorOccurred += SerialPort_ErrorOccurred;
-        ViewModel.RepeatSending.PayloadSent += RepeatSending_PayloadSent;
-        ViewModel.RepeatSending.SendFailed += RepeatSending_SendFailed;
+        ViewModel.ScheduledSending.PayloadSent += ScheduledSending_PayloadSent;
+        ViewModel.ScheduledSending.SendFailed += ScheduledSending_SendFailed;
 
         InitializeSerialOptions();
         InitializeCommandPresets();
@@ -92,7 +92,7 @@ public sealed partial class MainPage : Page
         ExitPresetReorderMode();
         ViewModel.TerminalAppearance.PropertyChanged -= TerminalAppearance_PropertyChanged;
         ViewModel.CommandPresets.PropertyChanged -= CommandPresets_PropertyChanged;
-        StopRepeatSending();
+        StopScheduledSending();
         _terminalRenderTimer.Stop();
         try
         {

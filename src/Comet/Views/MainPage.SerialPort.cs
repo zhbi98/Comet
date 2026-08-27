@@ -65,8 +65,10 @@ public sealed partial class MainPage
     private void DisconnectSerialPort()
     {
         var portName = ViewModel.Connection.PortName ?? "串口";
-        StopRepeatSending();
+        StopScheduledSending();
         RepeatSendToggle.IsOn = false;
+        PresetCycleToggleButton.IsChecked = false;
+        UpdatePresetPanelState();
         ViewModel.Connection.Close();
         ViewModel.Terminal.ResetDecoder();
         AppendTerminalEntry("SYS", $"{portName} 已断开");
@@ -249,7 +251,7 @@ public sealed partial class MainPage
     {
         if (!RepeatSendToggle.IsOn)
         {
-            StopRepeatSending();
+            StopScheduledSending(ScheduledSendMode.RepeatPayload);
             return;
         }
 
@@ -271,7 +273,12 @@ public sealed partial class MainPage
             return;
         }
 
-        ViewModel.RepeatSending.Start(payload, GetRepeatSendInterval());
+        if (PresetCycleToggleButton.IsChecked == true)
+        {
+            StopCommandPresetCycleSending();
+        }
+
+        ViewModel.ScheduledSending.StartRepeating(payload, GetRepeatSendInterval());
     }
 
     private void RepeatIntervalNumberBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args) =>
@@ -279,7 +286,7 @@ public sealed partial class MainPage
 
     private void UpdateRepeatSendInterval()
     {
-        ViewModel.RepeatSending.UpdateInterval(GetRepeatSendInterval());
+        ViewModel.ScheduledSending.UpdateInterval(GetRepeatSendInterval());
     }
 
     private TimeSpan GetRepeatSendInterval()
@@ -290,12 +297,12 @@ public sealed partial class MainPage
 
     private void UpdateRepeatSendPayload()
     {
-        if (!ViewModel.RepeatSending.IsEnabled)
+        if (ViewModel.ScheduledSending.Mode != ScheduledSendMode.RepeatPayload)
         {
             return;
         }
 
-        ViewModel.RepeatSending.UpdatePayload(
+        ViewModel.ScheduledSending.UpdateRepeatingPayload(
             TryPreparePayload(
                 SendTextBox.Text,
                 SendHexCheckBox.IsChecked == true,
@@ -306,7 +313,7 @@ public sealed partial class MainPage
                 : null);
     }
 
-    private void RepeatSending_PayloadSent(object? sender, RepeatedPayloadSentEventArgs e)
+    private void ScheduledSending_PayloadSent(object? sender, ScheduledPayloadSentEventArgs e)
     {
         _ = DispatcherQueue.TryEnqueue(() =>
         {
@@ -321,9 +328,12 @@ public sealed partial class MainPage
         });
     }
 
-    private void StopRepeatSending() => ViewModel.RepeatSending.Stop();
+    private void StopScheduledSending() => ViewModel.ScheduledSending.Stop();
 
-    private void RepeatSending_SendFailed()
+    private void StopScheduledSending(ScheduledSendMode mode)
+        => ViewModel.ScheduledSending.Stop(mode);
+
+    private void ScheduledSending_SendFailed()
     {
         _ = DispatcherQueue.TryEnqueue(() =>
         {
@@ -332,8 +342,14 @@ public sealed partial class MainPage
                 return;
             }
 
+            var wasPresetCycle = PresetCycleToggleButton.IsChecked == true;
             RepeatSendToggle.IsOn = false;
-            ShowMessage("循环发送已停止", "请检查连接状态或发送内容。", InfoBarSeverity.Warning);
+            PresetCycleToggleButton.IsChecked = false;
+            UpdatePresetPanelState();
+            ShowMessage(
+                wasPresetCycle ? "快捷指令循环发送已停止" : "循环发送已停止",
+                "请检查连接状态或发送内容。",
+                InfoBarSeverity.Warning);
         });
     }
 

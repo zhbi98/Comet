@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Comet.Core.Transmission;
 using Comet.Models;
 using Comet.ViewModels;
 using Microsoft.UI.Xaml;
@@ -62,6 +63,55 @@ public sealed partial class MainPage
         }
     }
 
+    private void PresetCycleToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (PresetCycleToggleButton.IsChecked != true)
+        {
+            StopCommandPresetCycleSending();
+            return;
+        }
+
+        ExitPresetReorderMode();
+        if (!ViewModel.Connection.IsConnected)
+        {
+            StopCommandPresetCycleSending();
+            ShowMessage("无法循环发送", "请先连接串口。", InfoBarSeverity.Warning);
+            return;
+        }
+
+        if (!TryPreparePresetCycle(out var payloads))
+        {
+            StopCommandPresetCycleSending();
+            return;
+        }
+
+        RepeatSendToggle.IsOn = false;
+        ViewModel.ScheduledSending.StartPresetCycle(payloads, GetRepeatSendInterval());
+        UpdatePresetPanelState();
+    }
+
+    private bool TryPreparePresetCycle(out IReadOnlyList<PreparedSerialPayload> payloads)
+    {
+        if (ViewModel.Transmission.TryPrepareCommandPresetCycle(
+                ViewModel.CommandPresets.Items,
+                GetSelectedTextEncoding(),
+                out payloads,
+                out var error) &&
+            payloads.Count > 0)
+        {
+            return true;
+        }
+
+        ShowMessage(
+            "无法循环发送",
+            error is null
+                ? "请先添加快捷指令。"
+                : $"请检查快捷指令“{error.PresetName}”的内容和发送格式。",
+            InfoBarSeverity.Warning);
+        payloads = [];
+        return false;
+    }
+
     private void CompletePresetReorderMode()
     {
         if (_isPresetOrderDirty)
@@ -93,6 +143,7 @@ public sealed partial class MainPage
         ToolTipService.SetToolTip(
             PresetReorderModeButton,
             isEnabled ? "完成顺序调整" : "启用拖拽排序");
+        UpdatePresetPanelState();
     }
 
     private void PresetDragHandle_PointerPressed(object sender, PointerRoutedEventArgs args)
@@ -233,6 +284,13 @@ public sealed partial class MainPage
 
     internal void ExitCommandPresetReorderMode() => ExitPresetReorderMode();
 
+    internal void StopCommandPresetCycleSending()
+    {
+        PresetCycleToggleButton.IsChecked = false;
+        StopScheduledSending(ScheduledSendMode.PresetCycle);
+        UpdatePresetPanelState();
+    }
+
     private CommandPresetModel? FindCommandPreset(object sender)
     {
         if (sender is not FrameworkElement { Tag: string id })
@@ -256,7 +314,21 @@ public sealed partial class MainPage
     {
         PresetCountText.Text = ViewModel.CommandPresets.CountText;
         EmptyPresetText.Visibility = ViewModel.CommandPresets.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
-        PresetReorderModeButton.IsEnabled = _isPresetReorderMode || ViewModel.CommandPresets.Items.Count > 1;
+        var isPresetCycleActive = PresetCycleToggleButton.IsChecked == true;
+        var presetCount = ViewModel.CommandPresets.Items.Count;
+        PresetCycleToggleButton.IsEnabled =
+            isPresetCycleActive || (!_isPresetReorderMode && presetCount > 0);
+        PresetCycleToggleButton.Content = isPresetCycleActive ? "停止发送" : "循环发送";
+        PresetEditorPanel.IsHitTestVisible = !isPresetCycleActive;
+        PresetEditorPanel.Opacity = isPresetCycleActive ? 0.55 : 1;
+        PresetList.IsEnabled = !isPresetCycleActive;
+        PresetReorderModeButton.IsEnabled =
+            !isPresetCycleActive && (_isPresetReorderMode || presetCount > 1);
+        ToolTipService.SetToolTip(
+            PresetCycleToggleButton,
+            presetCount == 0
+                ? "请先添加快捷指令"
+                : $"按当前顺序循环发送 {presetCount} 条指令");
     }
 
     private void RunPresetMutation(Action mutation)

@@ -10,16 +10,16 @@ public sealed class MainViewModel : IDisposable
     public MainViewModel(
         ISerialPortService serialPortService,
         ICommandPresetStorageService commandPresetStorageService,
-        Func<Action, IPeriodicTimer> repeatTimerFactory)
+        Func<Action, IPeriodicTimer> scheduledTimerFactory)
     {
         // Feature view models share the same connection instance so direct, preset,
-        // terminal, and repeated sends observe one transport lifecycle.
+        // terminal, and scheduled sends observe one transport lifecycle.
         Connection = new ConnectionViewModel(serialPortService);
         Terminal = new TerminalViewModel();
         TerminalAppearance = new TerminalAppearanceViewModel();
         Transmission = new TransmissionViewModel();
         CommandPresets = new CommandPresetsViewModel(commandPresetStorageService);
-        RepeatSending = new RepeatSendViewModel(Connection, repeatTimerFactory);
+        ScheduledSending = new ScheduledSendViewModel(Connection, scheduledTimerFactory);
     }
 
     public ConnectionViewModel Connection { get; }
@@ -32,12 +32,12 @@ public sealed class MainViewModel : IDisposable
 
     public CommandPresetsViewModel CommandPresets { get; }
 
-    public RepeatSendViewModel RepeatSending { get; }
+    public ScheduledSendViewModel ScheduledSending { get; }
 
     public void Dispose()
     {
         // Stop the timer thread before disposing the serial service it may call.
-        RepeatSending.Dispose();
+        ScheduledSending.Dispose();
         Connection.Dispose();
     }
 }

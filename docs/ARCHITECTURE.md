@@ -30,7 +30,7 @@ Comet（WinUI 3 应用）
        ├─ TerminalAppearanceViewModel
        ├─ TransmissionViewModel -> Core/Transmission
        ├─ CommandPresetsViewModel -> ICommandPresetStorageService
-       └─ RepeatSendViewModel -> ConnectionViewModel + IPeriodicTimer
+       └─ ScheduledSendViewModel -> ConnectionViewModel + IPeriodicTimer
 
 Views / Controls
   -> ViewModels
@@ -72,7 +72,7 @@ Comet.Core
 | `TerminalAppearanceViewModel` | 字体名称、字号约束和恢复默认；仅保存平台无关的值，不引用 WinUI 字体类型 |
 | `TransmissionViewModel` | 把页面发送意图交给纯核心发送引擎 |
 | `CommandPresetsViewModel` | 快捷指令集合、增删改查、顺序保存、JSON 备份导入导出和持久化协调 |
-| `RepeatSendViewModel` | 周期发送状态、并发写入保护以及成功/失败通知 |
+| `ScheduledSendViewModel` | 单条循环与指令列表循环的定时状态、并发写入保护以及失败通知 |
 
 ViewModel 使用 `INotifyPropertyChanged` 暴露可绑定状态。需要 WinUI 控件才能完成的动作由事件返回给 View，例如循环发送成功后，View 再把 TX 文本提交到终端控件。
 
@@ -82,7 +82,7 @@ ViewModel 使用 `INotifyPropertyChanged` 暴露可绑定状态。需要 WinUI �
 
 - `ISerialPortService` / `SerialPortService`：端口枚举、SetupAPI 设备名称、连接、收发和释放。
 - `ICommandPresetStorageService` / `CommandPresetStorageService`：`presets.json` 读取与保存。
-- `IPeriodicTimer` / `HighResolutionPeriodicTimer`：不依赖 UI 调度器的循环发送周期。
+- `IPeriodicTimer` / `HighResolutionPeriodicTimer`：不依赖 UI 调度器的定时发送周期。
 
 抽象接口使 ViewModel 不需要知道串口或文件的实现细节，也为后续单元测试替身保留边界。
 
@@ -102,6 +102,8 @@ WinUI 项目的 `App` 创建服务和 `MainViewModel`，`MainWindow` 把 ViewMod
 快捷指令备份的系统文件选择器和覆盖确认也位于 `MainWindow`。Core 中的 `CommandPresetLimits` 是 60 条容量上限的唯一来源，`CommandPresetJsonCodec` 定义本地存储与备份文件共用的 JSON 格式，并在读取和写入边界应用该上限；`CommandPresetsViewModel` 再次维护集合容量不变量。初始化是只读操作，不会创建、截断或重写配置；只有新增、删除、编辑、完成排序或导入等明确保存动作才写入当前内存集合。导入在完整解析成功后替换集合并调用抽象存储服务，保存失败则恢复原集合。窗口通过绑定 `CanAdd` 控制添加入口，不复制容量和序列化规则；Core 不依赖 `StorageFile`、文件选择器或 `ContentDialog`。
 
 快捷指令排序使用 `ListView` 内置重排。`MainPage.CommandPresets` 只管理排序模式、拖拽手柄授权、未保存标记和 WinUI 事件；多次拖拽只改变内存集合，点击“完成”后由 `CommandPresetsViewModel` 一次性尝试持久化最终顺序。保存失败不会回滚内存集合，当前进程继续使用新顺序，关闭后由下次启动重新读取磁盘中最后一次成功保存的顺序。View 不直接写入 `presets.json`。
+
+快捷指令循环发送在 View 中读取当前卡片并通过现有发送引擎生成不可变载荷快照，Core 的 `ScheduledSendViewModel` 只接收载荷数组、共享周期和调度模式。每轮发送次数等于快照长度；计时器线程每次只取下一项，最后一项之后回到索引 0，直到 View 明确停止。调度器不持有 `ListView`，也不产生滚动行为。View 在运行期间锁定列表编辑，并保证快捷指令列表循环与底部单条循环互斥。
 
 ## 关键数据流
 
@@ -128,11 +130,11 @@ View 用户操作
   -> View 按现有时间戳规则决定是否显示 TX
 ```
 
-### 循环发送
+### 定时发送
 
 ```text
-View 开启循环发送
-  -> RepeatSendViewModel
+View 开启底部循环或快捷指令列表循环
+  -> ScheduledSendViewModel
   -> IPeriodicTimer 后台回调
   -> ConnectionViewModel.Send
   -> PayloadSent 事件
@@ -140,7 +142,7 @@ View 开启循环发送
   -> 计数与终端 TX 增量
 ```
 
-串口写入发生在计时器线程；UI 渲染不能反向阻塞周期调度。
+单条模式持续重复当前底部载荷；列表模式按快照顺序循环并在末尾回到首项。串口写入发生在计时器线程；UI 渲染不能反向阻塞周期调度。
 
 ## 行为不变量
 
@@ -153,8 +155,8 @@ View 开启循环发送
 5. 文本转义、HEX 分隔符、默认行尾和内容区 Enter 规则保持 README 定义。
 6. 文本和 HEX 完整会话在清空前不按视口容量淘汰。
 7. RX/TX 计数按实际成功传输字节累计。
-8. 循环发送首次写入仍在一个完整周期后发生，周期范围仍为 20–60,000 ms。
-9. 关闭窗口时先停止循环发送，再关闭并释放串口；整个过程保持幂等。
+8. 两种定时发送的首次写入都在一个完整周期后发生，共用 20–60,000 ms 周期；快捷指令列表持续循环到用户停止。
+9. 关闭窗口时先停止当前定时发送，再关闭并释放串口；整个过程保持幂等。
 10. UI 布局、控件名称、默认值、图标和 Windows 10/11 表现不因分层调整而改变。
 
 ## 维护规则
