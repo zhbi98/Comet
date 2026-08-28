@@ -32,8 +32,17 @@
                 BorderBrush="{StaticResource CometTerminalBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="12">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Spacing="14">
+                <ScrollViewer
+                    Margin="0,0,-12,0"
+                    VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer.Resources>
+                        <Style TargetType="ScrollBar">
+                            <Setter Property="Width" Value="8" />
+                        </Style>
+                    </ScrollViewer.Resources>
+
+                    <!--  Offset the narrow scroll bar into the gutter without changing content width.  -->
+                    <StackPanel Margin="0,0,12,0" Spacing="14">
                         <StackPanel Spacing="3">
                             <TextBlock
                                 FontSize="16"
@@ -45,107 +54,120 @@
                                 Text="配置设备的串口通信参数" />
                         </StackPanel>
 
-                        <StackPanel x:Name="SettingsPanel" Spacing="12">
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="12">
+                            <StackPanel x:Name="SerialConnectionSettingsPanel" Spacing="12">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox
+                                        x:Name="PortComboBox"
+                                        HorizontalAlignment="Stretch"
+                                        DisplayMemberPath="DisplayName"
+                                        Header="串口"
+                                        ItemsSource="{x:Bind ViewModel.Connection.Ports, Mode=OneWay}" />
+                                    <Button
+                                        Grid.Column="1"
+                                        Width="40"
+                                        Height="34"
+                                        Margin="0,24,0,0"
+                                        Padding="0"
+                                        Click="RefreshPortsButton_Click"
+                                        ToolTipService.ToolTip="刷新串口">
+                                        <FontIcon
+                                            FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                            FontSize="15"
+                                            Glyph="&#xE72C;" />
+                                    </Button>
+                                </Grid>
+
                                 <ComboBox
-                                    x:Name="PortComboBox"
+                                    x:Name="BaudRateComboBox"
                                     HorizontalAlignment="Stretch"
-                                    DisplayMemberPath="DisplayName"
-                                    Header="串口"
-                                    ItemsSource="{x:Bind ViewModel.Connection.Ports, Mode=OneWay}" />
-                                <Button
-                                    Grid.Column="1"
-                                    Width="40"
-                                    Height="34"
-                                    Margin="0,24,0,0"
-                                    Padding="0"
-                                    Click="RefreshPortsButton_Click"
-                                    ToolTipService.ToolTip="刷新串口">
-                                    <FontIcon
-                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                        FontSize="15"
-                                        Glyph="&#xE72C;" />
-                                </Button>
-                            </Grid>
+                                    Header="波特率" />
 
-                            <ComboBox
-                                x:Name="BaudRateComboBox"
-                                HorizontalAlignment="Stretch"
-                                Header="波特率" />
-
-                            <Grid ColumnSpacing="10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
                                 <ComboBox
-                                    x:Name="DataBitsComboBox"
+                                    x:Name="EncodingComboBox"
                                     HorizontalAlignment="Stretch"
-                                    Header="数据位" />
-                                <ComboBox
-                                    x:Name="StopBitsComboBox"
-                                    Grid.Column="1"
+                                    Header="字符编码" />
+
+                                <Expander
+                                    x:Name="SerialAdvancedSettingsExpander"
                                     HorizontalAlignment="Stretch"
-                                    Header="停止位" />
-                            </Grid>
+                                    HorizontalContentAlignment="Stretch"
+                                    AutomationProperties.Name="高级设置"
+                                    Header="高级设置"
+                                    IsExpanded="False">
+                                    <StackPanel Margin="0,8,0,4" Spacing="12">
+                                        <Grid ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox
+                                                x:Name="DataBitsComboBox"
+                                                HorizontalAlignment="Stretch"
+                                                Header="数据位" />
+                                            <ComboBox
+                                                x:Name="StopBitsComboBox"
+                                                Grid.Column="1"
+                                                HorizontalAlignment="Stretch"
+                                                Header="停止位" />
+                                        </Grid>
 
-                            <ComboBox
-                                x:Name="ParityComboBox"
-                                HorizontalAlignment="Stretch"
-                                Header="校验位" />
-                            <ComboBox
-                                x:Name="HandshakeComboBox"
-                                HorizontalAlignment="Stretch"
-                                Header="流控制" />
-                            <ComboBox
-                                x:Name="EncodingComboBox"
-                                HorizontalAlignment="Stretch"
-                                Header="字符编码" />
+                                        <ComboBox
+                                            x:Name="ParityComboBox"
+                                            HorizontalAlignment="Stretch"
+                                            Header="校验位" />
+                                        <ComboBox
+                                            x:Name="HandshakeComboBox"
+                                            HorizontalAlignment="Stretch"
+                                            Header="流控制" />
 
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <ToggleSwitch
-                                    x:Name="DtrToggle"
-                                    Header="DTR"
-                                    OffContent="关"
-                                    OnContent="开" />
-                                <ToggleSwitch
-                                    x:Name="RtsToggle"
-                                    Grid.Column="1"
-                                    Header="RTS"
-                                    OffContent="关"
-                                    OnContent="开" />
-                            </Grid>
-                        </StackPanel>
-
-                        <Button
-                            x:Name="OpenCloseButton"
-                            HorizontalAlignment="Stretch"
-                            Click="OpenCloseButton_Click"
-                            Style="{StaticResource AccentButtonStyle}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon
-                                    x:Name="OpenCloseIcon"
-                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                    FontSize="14"
-                                    Glyph="&#xE8CE;" />
-                                <TextBlock x:Name="OpenCloseText" Text="连接串口" />
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <ToggleSwitch
+                                                x:Name="DtrToggle"
+                                                Header="DTR"
+                                                OffContent="关"
+                                                OnContent="开" />
+                                            <ToggleSwitch
+                                                x:Name="RtsToggle"
+                                                Grid.Column="1"
+                                                Header="RTS"
+                                                OffContent="关"
+                                                OnContent="开" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Expander>
                             </StackPanel>
-                        </Button>
 
-                        <TextBlock
-                            x:Name="PortHintText"
-                            FontSize="11"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Text="请选择可用串口后连接"
-                            TextWrapping="Wrap" />
+                            <Button
+                                x:Name="SerialOpenCloseButton"
+                                HorizontalAlignment="Stretch"
+                                Click="SerialOpenCloseButton_Click"
+                                Style="{StaticResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon
+                                        x:Name="SerialOpenCloseIcon"
+                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                        FontSize="14"
+                                        Glyph="&#xE8CE;" />
+                                    <TextBlock x:Name="SerialOpenCloseText" Text="连接串口" />
+                                </StackPanel>
+                            </Button>
+
+                            <TextBlock
+                                x:Name="PortHintText"
+                                FontSize="11"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="请选择可用串口后连接"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -531,7 +553,7 @@
                             <Grid Grid.Row="2" Margin="0,0,-8,0">
                                 <ListView
                                     x:Name="PresetList"
-                                    Padding="0,0,16,0"
+                                    Padding="0,0,12,0"
                                     Background="Transparent"
                                     DragItemsCompleted="PresetList_DragItemsCompleted"
                                     DragItemsStarting="PresetList_DragItemsStarting"
@@ -542,6 +564,12 @@
                                     ScrollViewer.VerticalScrollBarVisibility="Visible"
                                     ScrollViewer.VerticalScrollMode="Enabled"
                                     SelectionMode="None">
+                                    <ListView.Resources>
+                                        <Style TargetType="ScrollBar">
+                                            <Setter Property="Width" Value="8" />
+                                        </Style>
+                                    </ListView.Resources>
+
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />

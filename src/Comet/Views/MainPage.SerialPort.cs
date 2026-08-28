@@ -21,7 +21,7 @@ public sealed partial class MainPage
         PortHintText.Text = ViewModel.Connection.PortHint;
     }
 
-    private async void OpenCloseButton_Click(object sender, RoutedEventArgs e)
+    private async void SerialOpenCloseButton_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel.Connection.IsConnected)
         {
@@ -360,8 +360,8 @@ public sealed partial class MainPage
     private void UpdateConnectionState()
     {
         var isOpen = ViewModel.Connection.IsConnected;
-        SettingsPanel.IsHitTestVisible = !isOpen;
-        SettingsPanel.Opacity = isOpen ? 0.55 : 1;
+        SerialConnectionSettingsPanel.IsHitTestVisible = !isOpen;
+        SerialConnectionSettingsPanel.Opacity = isOpen ? 0.55 : 1;
         SendButton.IsEnabled = isOpen;
         TerminalView.IsInputEnabled = isOpen;
         ToolTipService.SetToolTip(
@@ -374,8 +374,8 @@ public sealed partial class MainPage
         }
 
         ConnectionDot.Fill = isOpen ? _connectedBrush : _disconnectedBrush;
-        OpenCloseText.Text = isOpen ? "断开串口" : "连接串口";
-        OpenCloseIcon.Glyph = isOpen ? "\uE8D7" : "\uE8CE";
+        SerialOpenCloseText.Text = isOpen ? "断开串口" : "连接串口";
+        SerialOpenCloseIcon.Glyph = isOpen ? "\uE8D7" : "\uE8CE";
         UpdateReceiveRecordingState();
         if (isOpen)
         {
