@@ -14,11 +14,17 @@ public interface ISerialPortService : IDisposable
     event EventHandler<SerialBytesReceivedEventArgs>? BytesReceived;
 
     /// <summary>
-    /// Reports asynchronous read failures on the originating worker thread.
+    /// Reports asynchronous transport failures that cannot be handled as a reconnect.
     /// </summary>
     event Action<string>? ErrorOccurred;
 
     bool IsOpen { get; }
+
+    /// <summary>
+    /// Gets whether the user-owned connection session remains active, including
+    /// short periods in which the physical device is being recovered.
+    /// </summary>
+    bool IsConnectionActive { get; }
 
     string? PortName { get; }
 

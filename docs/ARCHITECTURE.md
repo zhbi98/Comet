@@ -83,7 +83,9 @@ Comet.Core
 
 `Comet.Core/Services` 定义 ViewModel 所需能力。Windows 专属实现位于 `Comet/Services`；只依赖 .NET 文件流的录制实现位于 `Comet.Core/Recording`：
 
-- `ISerialPortService` / `SerialPortService`：端口枚举、SetupAPI 设备名称、连接、收发和释放。
+- `ISerialPortService` / `SerialPortService`：用户串口会话、收发、释放和后台自动恢复；Core 只区分物理端口可写与用户连接会话有效，不感知恢复过程。
+- `SerialPortDiscovery`：COM 端口枚举、SetupAPI 设备名称和端口存在性检查。
+- `SerialPortFactory`：初次连接和自动恢复共用的串口参数映射与实例创建。
 - `ICommandPresetStorageService` / `CommandPresetStorageService`：`presets.json` 读取与保存。
 - `IPeriodicTimer` / `HighResolutionPeriodicTimer`：不依赖 UI 调度器的定时发送周期。
 - `IRawReceiveRecordingService` / `RawReceiveRecordingService`：不依赖 WinUI 的原始 RX 后台写入和生命周期。
@@ -169,6 +171,7 @@ View 开启底部循环或快捷指令列表循环
 9. 关闭窗口时先停止当前定时发送，再关闭并释放串口；整个过程保持幂等。
 10. UI 布局、控件名称、默认值、图标和 Windows 10/11 表现不因分层调整而改变。
 11. 原始录制只写开始后的 RX 字节；停止、断开和关闭必须完成队列排空、文件刷新与释放。
+12. USB 串口物理移除后，服务释放旧句柄并保留连接意图；同一 COM 口恢复时使用原参数自动重连，且不向 UI 暴露临时恢复状态。手动断开或关闭窗口必须取消重连。
 
 ## 维护规则
 

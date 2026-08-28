@@ -114,6 +114,6 @@ public sealed partial class MainPage
         ReceiveRecordingButton.Content = recording.ButtonText;
         ReceiveRecordingButton.IsEnabled =
             !_isReceiveRecordingStopping &&
-            (recording.IsRecording || ViewModel.Connection.IsConnected);
+            (recording.IsRecording || ViewModel.Connection.IsConnectionActive);
     }
 }

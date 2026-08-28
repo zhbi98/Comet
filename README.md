@@ -270,9 +270,11 @@ SerialPort.DataReceived
 
 - 读取缓冲区为 16 KiB，写入缓冲区为 4 KiB。
 - 读取超时为 500 ms，写入超时为 1000 ms。
+- 串口服务在内部区分物理句柄和用户连接意图。USB 串口消失或读写句柄失效后，旧句柄会被释放；服务每 500 ms 检查同一 COM 口，端口恢复后使用原参数自动创建新句柄，无需再次点击连接。
+- 自动恢复不引入额外 UI 状态、SYS 文本或按钮文案：界面在恢复期间仍保持用户主动建立的“通信中”状态。正常断开或关闭窗口会结束后台重连。
 - 关闭前解除 `DataReceived` 订阅，再关闭并释放端口。
 - 窗口 `Closed` 和页面 `Unloaded` 都进入同一个幂等 `Shutdown()`；停止定时发送并关闭串口数据源后，排空原始录制队列、刷新文件并释放资源，重复回调不会重复释放。
-- 读取过程中的 I/O、无效状态和访问异常转换为页面错误提示。
+- 可恢复的读取、写入或设备移除异常会进入等待重连；与当前连接无关的异步错误才转换为页面错误提示。
 - 连接与断开时重置流式文本解码器；清空显示内容不会重置串口连接。
 
 ### 端口枚举
@@ -295,7 +297,9 @@ SerialPort.DataReceived
 | `ScheduledSendViewModel` | 底部单载荷循环与快捷指令列表循环的后台调度、互斥状态和并发写入保护 |
 | `RawReceiveRecordingService` | 有界接收队列、后台顺序写盘、刷新关闭和写入错误处理 |
 | `SerialPayloadEngine` | 文本转义、HEX、行尾和内容区输入的纯 C# 解释规则 |
-| `SerialPortService` | 枚举、打开、关闭、读取和写入串口 |
+| `SerialPortService` | 串口会话生命周期、收发、释放和无感自动恢复 |
+| `SerialPortDiscovery` | COM 端口枚举、SetupAPI 友好名称和端口存在性检查 |
+| `SerialPortFactory` | 初次连接与自动恢复共用的串口参数映射和实例创建 |
 | `StreamingTextDecoder` | 跨批次文本解码和无效字节替换 |
 | `TerminalBuffer` | 文本/HEX 格式和完整分段会话存储 |
 | `VirtualTerminalDocument` | 完整活动文档、定宽折行索引和字符/单元格映射 |
@@ -377,7 +381,7 @@ Comet/
 │     ├─ Assets/                   唯一应用 ICO（编译时嵌入 EXE）
 │     ├─ Converters/               UI 选项与领域值转换
 │     ├─ Controls/                 虚拟化终端及行呈现器
-│     ├─ Services/                 Windows 串口、存储与计时器实现
+│     ├─ Services/                 Windows 串口生命周期、设备发现、存储与计时器实现
 │     ├─ Views/                    XAML、窗口和 WinUI 交互协调
 │     ├─ Windowing/                标题栏与任务栏图标集成
 │     └─ Comet.csproj              WinUI、依赖和发布属性

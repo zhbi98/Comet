@@ -110,8 +110,8 @@
             x:Name="TerminalFontSettingsDialog"
             Title="终端字体设置"
             Grid.RowSpan="2"
-            CloseButtonText="关闭">
-            <Grid Width="312" RowSpacing="12">
+            CloseButtonText="完成">
+            <Grid Width="360" RowSpacing="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -119,43 +119,73 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="调整内容区的字体与字号" />
+                <StackPanel Spacing="4">
+                    <TextBlock
+                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                        Text="内容区显示" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="更改会即时应用，不会影响已经接收的数据或当前选择。"
+                        TextWrapping="Wrap" />
+                </StackPanel>
 
-                <ComboBox
-                    x:Name="TerminalFontFamilyComboBox"
-                    Grid.Row="1"
-                    HorizontalAlignment="Stretch"
-                    Header="字体"
-                    SelectionChanged="TerminalFontFamilyComboBox_SelectionChanged" />
-
-                <NumberBox
-                    x:Name="TerminalFontSizeNumberBox"
-                    Grid.Row="2"
-                    HorizontalAlignment="Stretch"
-                    Header="字号"
-                    SmallChange="1"
-                    SpinButtonPlacementMode="Compact"
-                    ValueChanged="TerminalFontSizeNumberBox_ValueChanged" />
-
-                <Grid Grid.Row="3" ColumnSpacing="8">
+                <Grid Grid.Row="1" ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="112" />
                     </Grid.ColumnDefinitions>
+
+                    <ComboBox
+                        x:Name="TerminalFontFamilyComboBox"
+                        HorizontalAlignment="Stretch"
+                        Header="字体"
+                        SelectionChanged="TerminalFontFamilyComboBox_SelectionChanged" />
+
+                    <NumberBox
+                        x:Name="TerminalFontSizeNumberBox"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        Header="字号"
+                        SmallChange="1"
+                        SpinButtonPlacementMode="Compact"
+                        ValueChanged="TerminalFontSizeNumberBox_ValueChanged" />
+                </Grid>
+
+                <StackPanel Grid.Row="2" Spacing="7">
+                    <Grid>
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                            Text="预览" />
+                        <TextBlock
+                            x:Name="TerminalFontPreviewSummaryTextBlock"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Grid>
+
                     <Border
-                        Padding="12,10"
-                        Background="{StaticResource CometSubtleBrush}"
+                        MinHeight="94"
+                        Padding="14,12"
+                        Background="{StaticResource CometTerminalBrush}"
                         BorderBrush="{StaticResource CometTerminalBorderBrush}"
                         BorderThickness="1"
-                        CornerRadius="7">
-                        <TextBlock x:Name="TerminalFontPreviewTextBlock" Text="Comet  Aa  0123456789" />
+                        CornerRadius="8">
+                        <TextBlock
+                            x:Name="TerminalFontPreviewTextBlock"
+                            VerticalAlignment="Center"
+                            Foreground="{StaticResource CometTerminalTextBrush}"
+                            Text="Comet Terminal&#x0a;&gt; Aa Bb 0123456789&#x0a;&gt; 串口通信 READY"
+                            TextWrapping="Wrap" />
                     </Border>
-                    <Button
-                        Grid.Column="1"
-                        VerticalAlignment="Stretch"
-                        Click="ResetTerminalFontButton_Click"
-                        Content="恢复默认" />
-                </Grid>
+                </StackPanel>
+
+                <Button
+                    Grid.Row="3"
+                    HorizontalAlignment="Left"
+                    Click="ResetTerminalFontButton_Click"
+                    Content="恢复默认设置" />
             </Grid>
         </ContentDialog>
     </Grid>

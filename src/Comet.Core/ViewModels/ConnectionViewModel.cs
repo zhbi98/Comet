@@ -18,8 +18,8 @@ public sealed class ConnectionViewModel : ObservableObject, IDisposable
         _serialPortService = serialPortService;
         // Re-publish transport events so views depend on the view model rather than
         // reaching through it to the concrete serial service.
-        _serialPortService.BytesReceived += (_, args) => BytesReceived?.Invoke(this, args);
-        _serialPortService.ErrorOccurred += message => ErrorOccurred?.Invoke(message);
+        _serialPortService.BytesReceived += SerialPortService_BytesReceived;
+        _serialPortService.ErrorOccurred += SerialPortService_ErrorOccurred;
     }
 
     public event EventHandler<SerialBytesReceivedEventArgs>? BytesReceived;
@@ -41,6 +41,8 @@ public sealed class ConnectionViewModel : ObservableObject, IDisposable
     }
 
     public bool IsConnected => _serialPortService.IsOpen;
+
+    public bool IsConnectionActive => _serialPortService.IsConnectionActive;
 
     public string? PortName => _serialPortService.PortName;
 
@@ -69,7 +71,7 @@ public sealed class ConnectionViewModel : ObservableObject, IDisposable
     {
         _serialPortService.Open(options);
         PortHint = "参数已锁定，断开后可修改。";
-        RaiseConnectionStateChanged();
+        NotifyConnectionPropertiesChanged();
     }
 
     public string Close()
@@ -78,17 +80,28 @@ public sealed class ConnectionViewModel : ObservableObject, IDisposable
         // for the existing SYS disconnect entry.
         var portName = PortName ?? "串口";
         _serialPortService.Close();
-        RaiseConnectionStateChanged();
+        NotifyConnectionPropertiesChanged();
         return portName;
     }
 
     public void Send(byte[] data) => _serialPortService.Send(data);
 
-    public void RaiseConnectionStateChanged()
+    private void NotifyConnectionPropertiesChanged()
     {
         OnPropertyChanged(nameof(IsConnected));
+        OnPropertyChanged(nameof(IsConnectionActive));
         OnPropertyChanged(nameof(PortName));
     }
 
-    public void Dispose() => _serialPortService.Dispose();
+    private void SerialPortService_BytesReceived(object? sender, SerialBytesReceivedEventArgs args) =>
+        BytesReceived?.Invoke(this, args);
+
+    private void SerialPortService_ErrorOccurred(string message) => ErrorOccurred?.Invoke(message);
+
+    public void Dispose()
+    {
+        _serialPortService.BytesReceived -= SerialPortService_BytesReceived;
+        _serialPortService.ErrorOccurred -= SerialPortService_ErrorOccurred;
+        _serialPortService.Dispose();
+    }
 }

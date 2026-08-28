@@ -56,7 +56,8 @@ public sealed partial class MainPage
             ViewModel.Terminal.RecordSent(payload.Length);
             UpdateTransferCounters();
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException or TimeoutException)
+        catch (Exception exception) when (
+            exception is InvalidOperationException or IOException or TimeoutException or UnauthorizedAccessException)
         {
             ShowMessage("键入发送失败", exception.Message, InfoBarSeverity.Error);
             UpdateConnectionState();

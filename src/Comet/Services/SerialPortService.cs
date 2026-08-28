@@ -1,32 +1,19 @@
 using System.IO.Ports;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.RegularExpressions;
+using System.Runtime.ExceptionServices;
 using Comet.Models;
 using Comet.Services.Abstractions;
+using Comet.Services.Serial;
 
 namespace Comet.Services;
 
 public sealed class SerialPortService : ISerialPortService
 {
-    private const uint DIGCF_PRESENT = 0x00000002;
-    private const uint SPDRP_DEVICE_DESCRIPTION = 0x00000000;
-    private const uint SPDRP_FRIENDLY_NAME = 0x0000000C;
-    private static readonly Guid PortsDeviceSetupClass = new("4D36E978-E325-11CE-BFC1-08002BE10318");
-    private static readonly Regex PortNameSuffixPattern = new(
-        @"\((COM\d+)\)\s*$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-    private static readonly Regex UsbIdentifierPattern = new(
-        @"\b(?:VID|PID)_[0-9A-F]{4}\b",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-    private static readonly Regex EmptyDelimiterGroupPattern = new(
-        @"\(\s*[·|&:;/,\\-]*\s*\)|\[\s*[·|&:;/,\\-]*\s*\]|\{\s*[·|&:;/,\\-]*\s*\}",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
-    private static readonly Regex RepeatedWhitespacePattern = new(
-        @"\s{2,}",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly TimeSpan _connectionMonitorInterval = TimeSpan.FromMilliseconds(500);
 
     private readonly object _syncRoot = new();
+    private CancellationTokenSource? _connectionMonitorCancellation;
+    private SerialPortConnectionOptions? _connectionOptions;
+    private long _connectionGeneration;
     private SerialPort? _port;
     private bool _disposed;
 
@@ -44,174 +31,51 @@ public sealed class SerialPortService : ISerialPortService
         }
     }
 
+    public bool IsConnectionActive
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _connectionOptions is not null;
+            }
+        }
+    }
+
     public string? PortName
     {
         get
         {
             lock (_syncRoot)
             {
-                return _port?.PortName;
+                return _connectionOptions?.PortName ?? _port?.PortName;
             }
         }
     }
 
-    public IReadOnlyList<SerialPortInfoModel> GetAvailablePorts()
-    {
-        var friendlyNames = GetPresentPortFriendlyNames();
-        return SerialPort.GetPortNames()
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(portName => new SerialPortInfoModel(
-                portName,
-                friendlyNames.GetValueOrDefault(portName)))
-            .OrderBy(port => GetPortNumber(port.PortName))
-            .ThenBy(port => port.PortName, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
-
-    private static Dictionary<string, string> GetPresentPortFriendlyNames()
-    {
-        // SerialPort exposes only COM names. SetupAPI supplies the matching device
-        // description (for example, CH340) without opening the port.
-        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var classGuid = PortsDeviceSetupClass;
-        var deviceInfoSet = SetupDiGetClassDevs(
-            ref classGuid,
-            null,
-            IntPtr.Zero,
-            DIGCF_PRESENT);
-        if (deviceInfoSet == new IntPtr(-1))
-        {
-            return names;
-        }
-
-        try
-        {
-            for (uint index = 0; ; index++)
-            {
-                var deviceInfo = new SpDeviceInfoData
-                {
-                    Size = (uint)Marshal.SizeOf<SpDeviceInfoData>()
-                };
-                if (!SetupDiEnumDeviceInfo(deviceInfoSet, index, ref deviceInfo))
-                {
-                    break;
-                }
-
-                var fullName = GetDeviceRegistryProperty(
-                                   deviceInfoSet,
-                                   ref deviceInfo,
-                                   SPDRP_FRIENDLY_NAME) ??
-                               GetDeviceRegistryProperty(
-                                   deviceInfoSet,
-                                   ref deviceInfo,
-                                   SPDRP_DEVICE_DESCRIPTION);
-                if (string.IsNullOrWhiteSpace(fullName))
-                {
-                    continue;
-                }
-
-                var match = PortNameSuffixPattern.Match(fullName);
-                if (!match.Success)
-                {
-                    continue;
-                }
-
-                var portName = match.Groups[1].Value.ToUpperInvariant();
-                var friendlyName = fullName[..match.Index].Trim();
-                if (friendlyName.Length > 0)
-                {
-                    names[portName] = SanitizeFriendlyName(friendlyName);
-                }
-            }
-        }
-        finally
-        {
-            SetupDiDestroyDeviceInfoList(deviceInfoSet);
-        }
-
-        return names;
-    }
-
-    private static string SanitizeFriendlyName(string friendlyName)
-    {
-        var sanitized = UsbIdentifierPattern.Replace(friendlyName, string.Empty);
-        sanitized = EmptyDelimiterGroupPattern.Replace(sanitized, string.Empty);
-        sanitized = RepeatedWhitespacePattern.Replace(sanitized, " ");
-        sanitized = sanitized.Trim(' ', '·', '|', '&', ':', ';', '/', '\\', ',', '-');
-        return sanitized.Length > 0 ? sanitized : "串行接口";
-    }
-
-    private static string? GetDeviceRegistryProperty(
-        IntPtr deviceInfoSet,
-        ref SpDeviceInfoData deviceInfo,
-        uint property)
-    {
-        var buffer = new byte[512];
-        if (!SetupDiGetDeviceRegistryProperty(
-                deviceInfoSet,
-                ref deviceInfo,
-                property,
-                out _,
-                buffer,
-                (uint)buffer.Length,
-                out var requiredSize))
-        {
-            if (requiredSize <= buffer.Length)
-            {
-                return null;
-            }
-
-            buffer = new byte[requiredSize];
-            if (!SetupDiGetDeviceRegistryProperty(
-                    deviceInfoSet,
-                    ref deviceInfo,
-                    property,
-                    out _,
-                    buffer,
-                    (uint)buffer.Length,
-                    out requiredSize))
-            {
-                return null;
-            }
-        }
-
-        var textLength = Math.Min((int)requiredSize, buffer.Length);
-        return Encoding.Unicode.GetString(buffer, 0, textLength).TrimEnd('\0').Trim();
-    }
+    public IReadOnlyList<SerialPortInfoModel> GetAvailablePorts() =>
+        SerialPortDiscovery.GetAvailablePorts();
 
     public void Open(SerialPortConnectionOptions options)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
         lock (_syncRoot)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _connectionGeneration++;
+            CancelConnectionMonitorCore();
             CloseCore();
-            var port = new SerialPort
-            {
-                PortName = options.PortName,
-                BaudRate = options.BaudRate,
-                DataBits = options.DataBits,
-                Parity = options.Parity,
-                StopBits = options.StopBits,
-                Handshake = options.Handshake,
-                DtrEnable = options.IsDtrEnabled,
-                RtsEnable = options.IsRtsEnabled,
-                ReadTimeout = 500,
-                WriteTimeout = 1000,
-                ReadBufferSize = 16 * 1024,
-                WriteBufferSize = 4 * 1024
-            };
-
-            port.DataReceived += OnDataReceived;
+            _connectionOptions = null;
+            var port = SerialPortFactory.Create(options, OnDataReceived);
             try
             {
                 port.Open();
                 _port = port;
+                _connectionOptions = options;
+                StartConnectionMonitorCore();
             }
             catch
             {
-                port.DataReceived -= OnDataReceived;
-                port.Dispose();
+                DisposePort(port);
                 throw;
             }
         }
@@ -221,6 +85,9 @@ public sealed class SerialPortService : ISerialPortService
     {
         lock (_syncRoot)
         {
+            _connectionGeneration++;
+            CancelConnectionMonitorCore();
+            _connectionOptions = null;
             CloseCore();
         }
     }
@@ -232,24 +99,46 @@ public sealed class SerialPortService : ISerialPortService
             return;
         }
 
+        Exception? failure = null;
         lock (_syncRoot)
         {
-            if (_port?.IsOpen != true)
+            var port = _port;
+            if (port?.IsOpen != true)
             {
                 throw new InvalidOperationException("串口尚未连接。");
             }
 
-            _port.Write(data, 0, data.Length);
+            try
+            {
+                port.Write(data, 0, data.Length);
+            }
+            catch (Exception exception) when (
+                exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+            {
+                failure = exception;
+                TryBeginRecoveryCore(port);
+            }
+        }
+
+        if (failure is not null)
+        {
+            ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
 
     private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
     {
+        var port = (SerialPort)sender;
+        if (!ReferenceEquals(Volatile.Read(ref _port), port))
+        {
+            return;
+        }
+
+        byte[]? receivedData = null;
         try
         {
             // Copy bytes before raising the event: the SerialPort buffer and callback
             // thread must not leak into consumers that process data asynchronously.
-            var port = (SerialPort)sender;
             var count = port.BytesToRead;
             if (count <= 0)
             {
@@ -268,11 +157,23 @@ public sealed class SerialPortService : ISerialPortService
                 Array.Resize(ref buffer, read);
             }
 
-            BytesReceived?.Invoke(this, new SerialBytesReceivedEventArgs(buffer, DateTime.Now));
+            receivedData = buffer;
         }
-        catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+        catch (TimeoutException exception)
         {
             ErrorOccurred?.Invoke(exception.Message);
+        }
+        catch (Exception exception) when (
+            exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            HandleTransportFailure(port);
+        }
+
+        if (receivedData is not null)
+        {
+            // Subscriber failures are outside the transport exception boundary and
+            // must never cause a healthy serial handle to enter recovery.
+            BytesReceived?.Invoke(this, new SerialBytesReceivedEventArgs(receivedData, DateTime.Now));
         }
     }
 
@@ -287,6 +188,11 @@ public sealed class SerialPortService : ISerialPortService
             return;
         }
 
+        DisposePort(port);
+    }
+
+    private void DisposePort(SerialPort port)
+    {
         port.DataReceived -= OnDataReceived;
         try
         {
@@ -295,65 +201,137 @@ public sealed class SerialPortService : ISerialPortService
                 port.Close();
             }
         }
+        catch (Exception exception) when (
+            exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            // A removed USB serial device can invalidate its native handle before
+            // SerialPort observes that the port is closed. Disposal must still finish.
+        }
         finally
         {
-            port.Dispose();
+            try
+            {
+                port.Dispose();
+            }
+            catch (Exception exception) when (
+                exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+            {
+                // The operating-system handle is already unusable; there is no
+                // remaining managed resource that can be recovered here.
+            }
         }
     }
 
-    private static int GetPortNumber(string portName)
+    private bool TryBeginRecoveryCore(SerialPort port)
     {
-        var digits = new string(portName.Where(char.IsDigit).ToArray());
-        return int.TryParse(digits, out var number) ? number : int.MaxValue;
+        if (_disposed ||
+            _connectionOptions is null ||
+            !ReferenceEquals(_port, port))
+        {
+            return false;
+        }
+
+        CloseCore();
+        return true;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct SpDeviceInfoData
+    private void HandleTransportFailure(SerialPort port)
     {
-        public uint Size;
-        public Guid ClassGuid;
-        public uint DeviceInstance;
-        public IntPtr Reserved;
+        lock (_syncRoot)
+        {
+            // A callback can finish after Close has detached its sender. Such stale
+            // failures belong to the retired handle and must not reach the page.
+            TryBeginRecoveryCore(port);
+        }
     }
 
-    [DllImport("setupapi.dll", EntryPoint = "SetupDiGetClassDevsW", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern IntPtr SetupDiGetClassDevs(
-        ref Guid classGuid,
-        string? enumerator,
-        IntPtr parentWindow,
-        uint flags);
+    private void StartConnectionMonitorCore()
+    {
+        var cancellation = new CancellationTokenSource();
+        var generation = _connectionGeneration;
+        _connectionMonitorCancellation = cancellation;
+        _ = Task.Run(() => MonitorConnectionAsync(generation, cancellation));
+    }
 
-    [DllImport("setupapi.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetupDiEnumDeviceInfo(
-        IntPtr deviceInfoSet,
-        uint memberIndex,
-        ref SpDeviceInfoData deviceInfoData);
+    private void CancelConnectionMonitorCore()
+    {
+        var cancellation = _connectionMonitorCancellation;
+        _connectionMonitorCancellation = null;
+        cancellation?.Cancel();
+    }
 
-    [DllImport("setupapi.dll", EntryPoint = "SetupDiGetDeviceRegistryPropertyW", CharSet = CharSet.Unicode, SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetupDiGetDeviceRegistryProperty(
-        IntPtr deviceInfoSet,
-        ref SpDeviceInfoData deviceInfoData,
-        uint property,
-        out uint propertyRegistryDataType,
-        byte[] propertyBuffer,
-        uint propertyBufferSize,
-        out uint requiredSize);
+    private async Task MonitorConnectionAsync(
+        long generation,
+        CancellationTokenSource cancellation)
+    {
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(_connectionMonitorInterval, cancellation.Token).ConfigureAwait(false);
+                MonitorConnection(generation);
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            cancellation.Dispose();
+        }
+    }
 
-    [DllImport("setupapi.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetupDiDestroyDeviceInfoList(IntPtr deviceInfoSet);
+    private void MonitorConnection(long generation)
+    {
+        lock (_syncRoot)
+        {
+            if (_disposed ||
+                generation != _connectionGeneration ||
+                _connectionOptions is not { } options)
+            {
+                return;
+            }
+
+            var isPortPresent = SerialPortDiscovery.IsPortPresent(options.PortName);
+            if (_port is { } currentPort)
+            {
+                if (currentPort.IsOpen && isPortPresent)
+                {
+                    return;
+                }
+
+                CloseCore();
+            }
+
+            if (isPortPresent)
+            {
+                var port = SerialPortFactory.Create(options, OnDataReceived);
+                try
+                {
+                    port.Open();
+                    _port = port;
+                }
+                catch (Exception exception) when (
+                    exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+                {
+                    DisposePort(port);
+                }
+            }
+        }
+    }
 
     public void Dispose()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
         lock (_syncRoot)
         {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _connectionGeneration++;
+            CancelConnectionMonitorCore();
+            _connectionOptions = null;
             CloseCore();
             _disposed = true;
         }

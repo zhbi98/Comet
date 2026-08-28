@@ -77,5 +77,7 @@ public sealed partial class MainWindow
         var appearance = _viewModel.TerminalAppearance;
         TerminalFontPreviewTextBlock.FontFamily = new FontFamily(appearance.FontFamilyName);
         TerminalFontPreviewTextBlock.FontSize = appearance.FontSize;
+        TerminalFontPreviewSummaryTextBlock.Text =
+            $"{appearance.FontFamilyName}  ·  {appearance.FontSize:0.#} pt";
     }
 }

@@ -23,7 +23,7 @@ public sealed partial class MainPage
 
     private async void SerialOpenCloseButton_Click(object sender, RoutedEventArgs e)
     {
-        if (ViewModel.Connection.IsConnected)
+        if (ViewModel.Connection.IsConnectionActive)
         {
             await DisconnectSerialPortAsync();
             return;
@@ -111,7 +111,8 @@ public sealed partial class MainPage
             UpdateTransferCounters();
             return true;
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException or TimeoutException)
+        catch (Exception exception) when (
+            exception is InvalidOperationException or IOException or TimeoutException or UnauthorizedAccessException)
         {
             if (shouldShowErrors)
             {
@@ -359,25 +360,32 @@ public sealed partial class MainPage
 
     private void UpdateConnectionState()
     {
-        var isOpen = ViewModel.Connection.IsConnected;
-        SerialConnectionSettingsPanel.IsHitTestVisible = !isOpen;
-        SerialConnectionSettingsPanel.Opacity = isOpen ? 0.55 : 1;
-        SendButton.IsEnabled = isOpen;
-        TerminalView.IsInputEnabled = isOpen;
+        // Automatic device recovery is intentionally transport-only. While the
+        // service replaces a stale handle, the page continues to show the user's
+        // requested connection as active instead of exposing a transient third state.
+        var isConnected = ViewModel.Connection.IsConnectionActive;
+        SerialConnectionSettingsPanel.IsHitTestVisible = !isConnected;
+        SerialConnectionSettingsPanel.Opacity = isConnected ? 0.55 : 1;
+        SendButton.IsEnabled = isConnected;
+        TerminalView.IsInputEnabled = isConnected;
         ToolTipService.SetToolTip(
             TerminalView,
-            isOpen ? "键入内容将同步发送到串口；内容仅显示设备 RX 回传。" : "连接串口后可在内容区键入发送；当前仍可选择和复制内容。");
-        FooterConnectionText.Text = isOpen ? $"{ViewModel.Connection.PortName} · 通信中" : "未连接";
+            isConnected
+                ? "键入内容将同步发送到串口；内容仅显示设备 RX 回传。"
+                : "连接串口后可在内容区键入发送；当前仍可选择和复制内容。");
+        FooterConnectionText.Text = isConnected
+            ? $"{ViewModel.Connection.PortName} · 通信中"
+            : "未连接";
         if (App.CurrentWindow is MainWindow window)
         {
-            window.SetConnectionStatus(isOpen ? ViewModel.Connection.PortName : null);
+            window.SetConnectionStatus(isConnected ? ViewModel.Connection.PortName : null);
         }
 
-        ConnectionDot.Fill = isOpen ? _connectedBrush : _disconnectedBrush;
-        SerialOpenCloseText.Text = isOpen ? "断开串口" : "连接串口";
-        SerialOpenCloseIcon.Glyph = isOpen ? "\uE8D7" : "\uE8CE";
+        ConnectionDot.Fill = isConnected ? _connectedBrush : _disconnectedBrush;
+        SerialOpenCloseText.Text = isConnected ? "断开串口" : "连接串口";
+        SerialOpenCloseIcon.Glyph = isConnected ? "\uE8D7" : "\uE8CE";
         UpdateReceiveRecordingState();
-        if (isOpen)
+        if (isConnected)
         {
             PortHintText.Text = "参数已锁定，断开后可修改。";
         }

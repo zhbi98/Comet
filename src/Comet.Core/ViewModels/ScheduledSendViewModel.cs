@@ -142,7 +142,8 @@ public sealed class ScheduledSendViewModel : IDisposable
                 Volatile.Write(ref _nextPayloadIndex, (payloadIndex + 1) % payloads.Length);
             }
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException or TimeoutException)
+        catch (Exception exception) when (
+            exception is InvalidOperationException or IOException or TimeoutException or UnauthorizedAccessException)
         {
             RaiseFailure();
         }

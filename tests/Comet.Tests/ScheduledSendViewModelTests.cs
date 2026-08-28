@@ -163,6 +163,8 @@ public sealed class ScheduledSendViewModelTests
 
         public bool IsOpen { get; set; }
 
+        public bool IsConnectionActive => IsOpen;
+
         public string? PortName => IsOpen ? "COM1" : null;
 
         public bool ShouldFailSend { get; set; }
