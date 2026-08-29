@@ -161,7 +161,17 @@ internal sealed class TerminalBuffer
 
                 if (character == '\r')
                 {
-                    normalized.Append('\r');
+                    // Some bootloaders emit CRCRLF ("\r\r\n"). The first CR only
+                    // returns the cursor to column zero; treating both CR characters
+                    // as line breaks creates a misleading blank row. Collapse repeated
+                    // CR characters, including when the sequence is split across
+                    // receive batches. A real CRLFCRLF sequence still contains two
+                    // line breaks because each CR is separated from the next by LF.
+                    if (!previousWasCarriageReturn)
+                    {
+                        normalized.Append('\r');
+                    }
+
                     previousWasCarriageReturn = true;
                     continue;
                 }

@@ -12,6 +12,8 @@ namespace Comet.Views;
 
 public sealed partial class MainPage : Page
 {
+    private const double CompactToolbarWidth = 700;
+
     private readonly ConcurrentQueue<SerialBytesReceivedEventArgs> _receiveQueue;
     private readonly DispatcherQueueTimer _terminalRenderTimer;
     private readonly SolidColorBrush _connectedBrush = new(Windows.UI.Color.FromArgb(255, 22, 135, 93));
@@ -22,6 +24,7 @@ public sealed partial class MainPage : Page
     private bool _isTerminalRenderPending;
     private bool _isUnloaded;
     private int _shutdownState;
+    private bool _isCompactTerminalToolbar;
 
     public MainViewModel ViewModel { get; }
 
@@ -79,6 +82,32 @@ public sealed partial class MainPage : Page
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
         Shutdown();
+    }
+
+    private void TerminalToolbarGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateTerminalToolbarLayout();
+    }
+
+    private void UpdateTerminalToolbarLayout()
+    {
+        var isCompact = TerminalToolbarGrid.ActualWidth > 0 &&
+                        TerminalToolbarGrid.ActualWidth < CompactToolbarWidth;
+        if (_isCompactTerminalToolbar == isCompact)
+        {
+            return;
+        }
+
+        _isCompactTerminalToolbar = isCompact;
+        // Keep the toolbar on one line. As the terminal column narrows, reduce the
+        // gap between the title and action group before reducing button dimensions.
+        TerminalToolbarGrid.ColumnSpacing = isCompact ? 2 : 8;
+        TerminalToolbarActions.Spacing = isCompact ? 3 : 5;
+
+        // Compact mode keeps every action reachable inside the reduced terminal width.
+        PresetPanelToggleButton.Width = isCompact ? 30 : 34;
+        SaveLogButton.Width = isCompact ? 30 : 34;
+        ClearTerminalButton.Width = isCompact ? 30 : 34;
     }
 
     internal void Shutdown()

@@ -70,7 +70,7 @@ SerialPortService
 4. 对原末行发送一个 `NotifyCollectionChangedAction.Replace`。
 5. 通过 `ObservableCollection` 对新增行发送 `Add` 通知。
 
-因此接收批次追加不会重置 `ItemsRepeater.ItemsSource`，也不会重建整份行列表。CR、LF、CRLF 形成硬换行；没有换行的数据按当前列数形成软折行。Tab 使用 4 列制表位；常见 CJK 和 emoji 按双单元格处理，组合字符不额外占单元格。
+因此接收批次追加不会重置 `ItemsRepeater.ItemsSource`，也不会重建整份行列表。文本显示层将 `CRLF`、`LF` 和 `CR` 分别规范为一个硬换行；设备可能产生的 `CRCRLF` 也兼容为一个换行，而 `CRLFCRLF` 保留为两个换行以表示真正的空行。原始录制不经过该规范化。没有换行的数据按当前列数形成软折行。Tab 使用 4 列制表位；常见 CJK 和 emoji 按双单元格处理，组合字符不额外占单元格。
 
 窗口宽度、字体或字号变化会改变列数。当前实现会同步重建完整折行索引，再通过文档字符锚点恢复视口；它不会改写 `TerminalBuffer` 中的两份完整会话。超长会话频繁调整窗口宽度仍可能产生一次明显的重排成本，这是后续可继续按区块惰性索引优化的部分。
 

@@ -40,6 +40,36 @@ public sealed class TerminalSessionTests
         Assert.AreEqual("中", decoder.Decode([0xAD], encoding));
     }
 
+    [TestMethod]
+    public void ReceiveText_CollapsesRedundantCarriageReturnsWithoutRemovingBlankLines()
+    {
+        var buffer = new TerminalBuffer();
+
+        buffer.Append(
+            CreateReceiveEntry("A\r\r\nB\r\n\r\nC", Encoding.ASCII.GetBytes("A\r\r\nB\r\n\r\nC")),
+            shouldIncludeInDisplay: true,
+            isReceiveDisplayedAsHex: false);
+
+        Assert.AreEqual("A\rB\r\rC", buffer.GetSessionText());
+    }
+
+    [TestMethod]
+    public void ReceiveText_CollapsesCarriageReturnsSplitAcrossBatches()
+    {
+        var buffer = new TerminalBuffer();
+
+        buffer.Append(
+            CreateReceiveEntry("A\r", [0x41, 0x0D]),
+            shouldIncludeInDisplay: true,
+            isReceiveDisplayedAsHex: false);
+        buffer.Append(
+            CreateReceiveEntry("\r\nB", [0x0D, 0x0A, 0x42]),
+            shouldIncludeInDisplay: true,
+            isReceiveDisplayedAsHex: false);
+
+        Assert.AreEqual("A\rB", buffer.GetSessionText());
+    }
+
     private static TerminalEntryModel CreateReceiveEntry(string text, byte[] bytes) => new()
     {
         Time = "12:34:56.789",
