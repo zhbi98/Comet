@@ -42,6 +42,8 @@ public sealed partial class VirtualTerminalControl : UserControl
         InitializeComponent();
         _document.Clear();
         LineRepeater.ItemsSource = _document.Lines;
+        var textCursor = InputCursor.CreateFromCoreCursor(new CoreCursor(CoreCursorType.IBeam, 0));
+        ProtectedCursor = textCursor;
 
         // ScrollViewer and TextBox handle pointer and keyboard events internally. Registering
         // with handledEventsToo keeps terminal interaction available after those class handlers run.
