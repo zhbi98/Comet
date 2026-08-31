@@ -28,7 +28,7 @@
 
             <Border
                 x:Name="ConnectionPanel"
-                Padding="16"
+                Padding="14"
                 Background="{StaticResource CometSurfaceBrush}"
                 BorderBrush="{StaticResource CometTerminalBorderBrush}"
                 BorderThickness="1"
@@ -43,7 +43,7 @@
                     </ScrollViewer.Resources>
 
                     <!--  Offset the narrow scroll bar into the gutter without changing content width.  -->
-                    <StackPanel Margin="0,0,12,0" Spacing="14">
+                    <StackPanel Margin="0,0,12,0" Spacing="15">
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
@@ -64,22 +64,22 @@
                             <Button
                                 x:Name="ConnectionPanelCollapseButton"
                                 Grid.Column="1"
-                                Width="30"
-                                Height="28"
+                                Width="32"
+                                Height="32"
                                 Padding="0"
-                                VerticalAlignment="Top"
+                                VerticalAlignment="Center"
                                 AutomationProperties.Name="收起连接设置"
                                 Click="ConnectionPanelCollapseButton_Click"
                                 ToolTipService.ToolTip="收起连接设置">
                                 <FontIcon
                                     FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                    FontSize="13"
+                                    FontSize="14"
                                     Glyph="&#xE76B;" />
                             </Button>
                         </Grid>
 
                         <StackPanel Spacing="12">
-                            <StackPanel x:Name="SerialConnectionSettingsPanel" Spacing="12">
+                            <StackPanel x:Name="SerialConnectionSettingsPanel" Spacing="11">
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -93,15 +93,15 @@
                                         ItemsSource="{x:Bind ViewModel.Connection.Ports, Mode=OneWay}" />
                                     <Button
                                         Grid.Column="1"
-                                        Width="40"
+                                        Width="38"
                                         Height="34"
-                                        Margin="0,24,0,0"
                                         Padding="0"
+                                        VerticalAlignment="Bottom"
                                         Click="RefreshPortsButton_Click"
                                         ToolTipService.ToolTip="刷新串口">
                                         <FontIcon
                                             FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                            FontSize="15"
+                                            FontSize="14"
                                             Glyph="&#xE72C;" />
                                     </Button>
                                 </Grid>
@@ -123,8 +123,8 @@
                                     AutomationProperties.Name="高级设置"
                                     Header="高级设置"
                                     IsExpanded="False">
-                                    <StackPanel Margin="0,8,0,4" Spacing="12">
-                                        <Grid ColumnSpacing="10">
+                                    <StackPanel Margin="0,8,0,2" Spacing="10">
+                                        <Grid ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
@@ -149,7 +149,7 @@
                                             HorizontalAlignment="Stretch"
                                             Header="流控制" />
 
-                                        <Grid ColumnSpacing="12">
+                                        <Grid ColumnSpacing="10">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
@@ -173,6 +173,7 @@
                             <Button
                                 x:Name="SerialOpenCloseButton"
                                 HorizontalAlignment="Stretch"
+                                MinHeight="36"
                                 Click="SerialOpenCloseButton_Click"
                                 Style="{StaticResource AccentButtonStyle}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -751,6 +752,23 @@
                             </Grid>
                         </Grid>
                     </Border>
+
+                    <!--  Keep notifications inside the terminal column so they never cover preset editing.  -->
+                    <InfoBar
+                        x:Name="MessageBar"
+                        Grid.Row="1"
+                        Grid.Column="0"
+                        MinWidth="320"
+                        MaxWidth="460"
+                        Margin="0,12,12,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Foreground="{StaticResource CometTerminalTextBrush}"
+                        BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        IsClosable="True"
+                        IsOpen="False" />
                 </Grid>
             </Border>
         </Grid>
@@ -807,28 +825,5 @@
                 Text="显示 0 / 会话 0" />
         </Grid>
 
-        <!--  Compact notifications stay close to terminal actions without covering the settings panel.  -->
-        <Grid Grid.Row="0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="286" />
-                <ColumnDefinition Width="14" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <InfoBar
-                x:Name="MessageBar"
-                Grid.Column="2"
-                MinWidth="320"
-                MaxWidth="460"
-                Margin="0,52,12,0"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Foreground="{StaticResource CometTerminalTextBrush}"
-                BorderBrush="{StaticResource CometTerminalBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                IsClosable="True"
-                IsOpen="False" />
-        </Grid>
     </Grid>
 </Page>

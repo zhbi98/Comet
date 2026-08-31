@@ -81,6 +81,11 @@
                                     x:Name="ExportCommandPresetsMenuItem"
                                     Click="ExportCommandPresetsMenuItem_Click"
                                     Text="导出快捷指令…" />
+                                <MenuFlyoutSeparator />
+                                <MenuFlyoutItem
+                                    x:Name="AboutMenuItem"
+                                    Click="AboutMenuItem_Click"
+                                    Text="关于 Comet" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
@@ -186,6 +191,89 @@
                     HorizontalAlignment="Left"
                     Click="ResetTerminalFontButton_Click"
                     Content="恢复默认设置" />
+            </Grid>
+        </ContentDialog>
+
+        <!--  Application identity and runtime version information.  -->
+        <ContentDialog
+            x:Name="AboutDialog"
+            Grid.RowSpan="2"
+            CloseButtonText="确定"
+            Title="关于 Comet">
+            <Grid
+                Width="320"
+                RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="嵌入式开发信息终端"
+                    TextWrapping="Wrap" />
+
+                <Border
+                    Grid.Row="1"
+                    Padding="12,7"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <Grid
+                        ColumnSpacing="12"
+                        RowSpacing="3">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!--  Labels stay muted; values carry the readable runtime details.  -->
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="版本" />
+                        <TextBlock
+                            x:Name="AboutVersionTextBlock"
+                            Grid.Column="1"
+                            FontFamily="Cascadia Mono" />
+
+                        <TextBlock
+                            Grid.Row="1"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text=".NET" />
+                        <TextBlock
+                            x:Name="AboutDotNetTextBlock"
+                            Grid.Row="1"
+                            Grid.Column="1"
+                            FontFamily="Cascadia Mono" />
+
+                        <TextBlock
+                            Grid.Row="2"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="运行环境" />
+                        <TextBlock
+                            x:Name="AboutRuntimeTextBlock"
+                            Grid.Row="2"
+                            Grid.Column="1"
+                            TextWrapping="WrapWholeWords" />
+
+                        <TextBlock
+                            Grid.Row="3"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="系统" />
+                        <TextBlock
+                            x:Name="AboutOperatingSystemTextBlock"
+                            Grid.Row="3"
+                            Grid.Column="1"
+                            TextWrapping="WrapWholeWords" />
+                    </Grid>
+                </Border>
             </Grid>
         </ContentDialog>
     </Grid>
