@@ -38,7 +38,7 @@ public sealed partial class MainWindow : Window
             presenter.PreferredMinimumHeight = 720;
         }
 
-        var windowSize = new SizeInt32(1280, 820);
+        var windowSize = new SizeInt32(1200, 720);
         AppWindow.Resize(windowSize);
         var displayArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
         if (displayArea is not null)

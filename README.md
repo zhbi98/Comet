@@ -1,10 +1,10 @@
+## Comet
+
 <p align="center">
-  <img src="src/Comet/Assets/CometTerminalIcon.ico" width="112" alt="Comet 应用图标">
+  <img src="src/Comet/Assets/CometTerminalIcon.ico" width="65" alt="Comet 应用图标">
 </p>
 
-<h1 align="center">Comet</h1>
-
-<p align="center">面向嵌入式开发的通用 Windows 串口终端</p>
+Comet 是基于 WinUI 3 与 .NET 10 开发的桌面串口调试工具。项目不绑定特定开发板、芯片或通信协议，适用于开发板终端、串口模块、传感器和其他通用串行设备。
 
 <p align="center">
   <a href="docs/ENVIRONMENT.md">环境安装</a> ·
@@ -12,8 +12,6 @@
   <a href="docs/TESTING.md">测试指南</a> ·
   <a href="docs/VIRTUAL_TERMINAL.md">虚拟化终端设计</a>
 </p>
-
-Comet 是基于 WinUI 3 与 .NET 10 开发的桌面串口调试工具。项目不绑定特定开发板、芯片或通信协议，适用于开发板终端、串口模块、传感器和其他通用串行设备。
 
 ## 目录
 
@@ -28,16 +26,18 @@ Comet 是基于 WinUI 3 与 .NET 10 开发的桌面串口调试工具。项目�
 
 ## 主要功能
 
-| 模块 | 当前实现 |
-| --- | --- |
-| 串口连接 | 端口枚举、波特率、数据位、停止位、校验位、流控制、DTR、RTS |
-| 端口识别 | 显示 Windows 提供的设备名称或型号，过滤 `VID_xxxx`、`PID_xxxx` |
-| 数据发送 | 文本、HEX、底部循环发送、快捷指令列表循环发送、内容区键入同步发送 |
-| 数据接收 | UTF-8、GBK、ASCII 流式解码，文本与 HEX 双视图，原始 RX 二进制持续录制 |
-| 终端显示 | 时间戳、RX/TX/SYS 前缀、自动换行、自动滚动、多行选择与复制 |
-| 大数据处理 | 接收队列、分批处理、完整会话/虚拟化视口分离、增量行索引与渲染 |
-| 辅助功能 | 快捷指令持久化与 JSON 备份、格式化日志保存、原始 `.bin` 录制、RX/TX 字节计数 |
-| 界面 | 固定浅色主题，适配 Windows 10/11 的符号字体和任务栏图标 |
+![image.png](./docs/1788081480661.png)
+
+| 模块    | 当前实现                                             |
+| ----- | ------------------------------------------------ |
+| 串口连接  | 端口枚举、波特率、数据位、停止位、校验位、流控制、DTR、RTS                 |
+| 端口识别  | 显示 Windows 提供的设备名称或型号，过滤 `VID_xxxx`、`PID_xxxx`   |
+| 数据发送  | 文本、HEX、底部循环发送、快捷指令列表循环发送、内容区键入同步发送               |
+| 数据接收  | UTF-8、GBK、ASCII 流式解码，文本与 HEX 双视图，原始 RX 二进制持续录制   |
+| 终端显示  | 时间戳、RX/TX/SYS 前缀、自动换行、自动滚动、多行选择与复制               |
+| 大数据处理 | 接收队列、分批处理、完整会话/虚拟化视口分离、增量行索引与渲染                  |
+| 辅助功能  | 快捷指令持久化与 JSON 备份、格式化日志保存、原始 `.bin` 录制、RX/TX 字节计数 |
+| 界面    | 固定浅色主题，适配 Windows 10/11 的符号字体和任务栏图标              |
 
 ## 快速使用
 
@@ -64,15 +64,15 @@ COM5 (USB-SERIAL CH340)
 
 ### 串口参数
 
-| 参数 | 可选值 | 默认值 |
-| --- | --- | --- |
-| 波特率 | 1200、2400、4800、9600、19200、38400、57600、115200、230400、460800、921600 | 115200 |
-| 数据位 | 5、6、7、8 | 8 |
-| 停止位 | 1、1.5、2 | 1 |
-| 校验位 | None、Odd、Even、Mark、Space | None |
-| 流控制 | None、XOn/XOff、RTS/CTS、RTS/CTS + XOn/XOff | None |
-| 字符编码 | UTF-8、GBK、ASCII | UTF-8 |
-| DTR / RTS | 开、关 | 关 |
+| 参数        | 可选值                                                               | 默认值    |
+| --------- | ----------------------------------------------------------------- | ------ |
+| 波特率       | 1200、2400、4800、9600、19200、38400、57600、115200、230400、460800、921600 | 115200 |
+| 数据位       | 5、6、7、8                                                           | 8      |
+| 停止位       | 1、1.5、2                                                           | 1      |
+| 校验位       | None、Odd、Even、Mark、Space                                          | None   |
+| 流控制       | None、XOn/XOff、RTS/CTS、RTS/CTS + XOn/XOff                          | None   |
+| 字符编码      | UTF-8、GBK、ASCII                                                   | UTF-8  |
+| DTR / RTS | 开、关                                                               | 关      |
 
 连接后参数区会锁定。断开串口后才能修改设置或切换端口。
 
@@ -82,24 +82,24 @@ COM5 (USB-SERIAL CH340)
 
 ### 发送方式
 
-| 入口 | 编码与行尾 | 内容区显示 |
-| --- | --- | --- |
-| 底部文本发送 | 解释转义序列，按所选字符编码发送，可追加无、CRLF、CR 或 LF | 开启时间戳时记录 TX |
-| 底部 HEX 发送 | 解析为原始字节；行尾选项不参与 HEX 发送 | 开启时间戳时记录 TX |
-| 内容区键入 | 新增字符或粘贴立即按所选编码发送；不解释转义序列 | 不做本地回显，只显示设备回传 |
-| 快捷指令立即发送 | 复用底部文本或 HEX 发送规则 | 开启时间戳时记录 TX |
-| 循环发送 | 按周期重复发送底部发送框的当前内容 | 与底部发送相同 |
-| 快捷指令循环发送 | 按列表顺序和各卡片模式持续逐条发送 | 与快捷指令立即发送相同 |
+| 入口        | 编码与行尾                              | 内容区显示          |
+| --------- | ---------------------------------- | -------------- |
+| 底部文本发送    | 解释转义序列，按所选字符编码发送，可追加无、CRLF、CR 或 LF | 开启时间戳时记录 TX    |
+| 底部 HEX 发送 | 解析为原始字节；行尾选项不参与 HEX 发送             | 开启时间戳时记录 TX    |
+| 内容区键入     | 新增字符或粘贴立即按所选编码发送；不解释转义序列           | 不做本地回显，只显示设备回传 |
+| 快捷指令立即发送  | 复用底部文本或 HEX 发送规则                   | 开启时间戳时记录 TX    |
+| 循环发送      | 按周期重复发送底部发送框的当前内容                  | 与底部发送相同        |
+| 快捷指令循环发送  | 按列表顺序和各卡片模式持续逐条发送                  | 与快捷指令立即发送相同    |
 
 底部文本发送和文本快捷指令支持以下转义：
 
-| 输入 | 数据 |
-| --- | --- |
-| `\\` | 反斜杠 |
-| `\0` | NUL |
-| `\a`、`\b`、`\f`、`\n`、`\r`、`\t`、`\v` | 对应控制字符 |
-| `\xNN` | 两位十六进制字符值 |
-| `\uNNNN` | 四位十六进制 Unicode 字符值 |
+| 输入                                 | 数据                 |
+| ---------------------------------- | ------------------ |
+| `\\`                               | 反斜杠                |
+| `\0`                               | NUL                |
+| `\a`、`\b`、`\f`、`\n`、`\r`、`\t`、`\v` | 对应控制字符             |
+| `\xNN`                             | 两位十六进制字符值          |
+| `\uNNNN`                           | 四位十六进制 Unicode 字符值 |
 
 未知转义会保留反斜杠和后续字符。`\x` 必须跟两位十六进制数，`\u` 必须跟四位十六进制数，否则本次发送会被拒绝。
 
@@ -180,11 +180,11 @@ HH:mm:ss.fff  SYS  状态
 
 每条指令提供三种操作：
 
-| 操作 | 行为 |
-| --- | --- |
-| 载入 | 将内容、HEX 状态和行尾复制到底部发送区，不立即发送 |
-| 立即发送 | 使用该预设直接发送，不改变底部发送区 |
-| 删除 | 删除预设并立即保存 |
+| 操作   | 行为                          |
+| ---- | --------------------------- |
+| 载入   | 将内容、HEX 状态和行尾复制到底部发送区，不立即发送 |
+| 立即发送 | 使用该预设直接发送，不改变底部发送区          |
+| 删除   | 删除预设并立即保存                   |
 
 现有预设可直接编辑名称和内容，失去焦点时保存。模式和行尾当前不能在已有条目上直接修改，需要删除后重新创建。快捷指令最多保存 60 条；达到上限后“添加”按钮不可用。读取本地配置或导入备份时如果包含更多条目，只加载文件中的前 60 条。
 
@@ -228,14 +228,14 @@ SerialPort.DataReceived
 
 `TerminalBuffer` 内部维护文本和 HEX 两个 `DisplayState`。每个视图使用不可变字符串分段追加格式化结果；常规接收不会把既有会话拼成一个新字符串，也不会因为 UI 容量淘汰旧内容。只有切换显示模式或保存日志时，才按需物化所选模式的完整字符串。
 
-| 设计项 | 实现 |
-| --- | --- |
-| 完整会话 | 文本和 HEX 模式分别保留自上次清空以来的格式化内容 |
-| 会话追加 | 只增加新的不可变分段，不复制既有会话 |
-| 活动文档 | 保存当前显示模式的完整 UTF-16 文本和折行索引 |
+| 设计项  | 实现                                 |
+| ---- | ---------------------------------- |
+| 完整会话 | 文本和 HEX 模式分别保留自上次清空以来的格式化内容        |
+| 会话追加 | 只增加新的不可变分段，不复制既有会话                 |
+| 活动文档 | 保存当前显示模式的完整 UTF-16 文本和折行索引         |
 | 常规更新 | 只重建原末行，并向行数据源发布 `Replace`/`Add` 增量 |
-| 模式切换 | 从对应模式的完整会话重建活动文档和行索引 |
-| 保存日志 | 从当前模式的完整会话存储生成文件 |
+| 模式切换 | 从对应模式的完整会话重建活动文档和行索引               |
+| 保存日志 | 从当前模式的完整会话存储生成文件                   |
 
 文本与 HEX 的字符膨胀比例不同，因此切换到 HEX 时活动文档通常更大。两份格式化会话和 RX 字节计数持续累计，直至用户清空或退出应用。
 
@@ -257,11 +257,11 @@ SerialPort.DataReceived
 
 短时间内收到的字符先在 UI 线程合并，再按本批待渲染字符数延迟提交：
 
-| 待渲染字符数 | 渲染合并间隔 |
-| --- | --- |
-| 少于 25,000 | 33 ms |
-| 25,000–249,999 | 50 ms |
-| 250,000 及以上 | 100 ms |
+| 待渲染字符数         | 渲染合并间隔 |
+| -------------- | ------ |
+| 少于 25,000      | 33 ms  |
+| 25,000–249,999 | 50 ms  |
+| 250,000 及以上    | 100 ms |
 
 自动滚动开启且没有文本选择时，渲染后滚动到末尾。关闭自动滚动或存在选择范围时，程序以最上方逻辑行的文档字符位置作为锚点；新增内容后恢复该锚点，避免正在查阅的历史发生跳动。键盘、鼠标拖动、跨行选择、全选和复制都作用于完整活动文档。
 
@@ -288,51 +288,51 @@ SerialPort.DataReceived
 
 ### 组件边界
 
-| 组件 | 职责 |
-| --- | --- |
-| `MainViewModel` | 聚合连接、终端、外观、发送、录制、快捷指令和循环发送 ViewModel |
-| `ConnectionViewModel` | 端口集合、连接状态以及串口服务协调 |
-| `TerminalViewModel` | 完整会话、流式解码和 RX/TX 计数 |
-| `TerminalAppearanceViewModel` | UI 无关的终端字体名称、字号范围和默认值 |
-| `TransmissionViewModel` | 向 UI 暴露纯发送引擎 |
-| `CommandPresetsViewModel` | 快捷指令集合、编辑、顺序保存、JSON 备份和持久化协调 |
-| `ReceiveRecordingViewModel` | 原始 RX 录制启停、文件路径和失败通知 |
-| `ScheduledSendViewModel` | 底部单载荷循环与快捷指令列表循环的后台调度、互斥状态和并发写入保护 |
-| `RawReceiveRecordingService` | 有界接收队列、后台顺序写盘、刷新关闭和写入错误处理 |
-| `SerialPayloadEngine` | 文本转义、HEX、行尾和内容区输入的纯 C# 解释规则 |
-| `SerialPortService` | 串口会话生命周期、收发、释放和无感自动恢复 |
-| `SerialPortDiscovery` | COM 端口枚举、SetupAPI 友好名称和端口存在性检查 |
-| `SerialPortFactory` | 初次连接与自动恢复共用的串口参数映射和实例创建 |
-| `StreamingTextDecoder` | 跨批次文本解码和无效字节替换 |
-| `TerminalBuffer` | 文本/HEX 格式和完整分段会话存储 |
-| `VirtualTerminalDocument` | 完整活动文档、定宽折行索引和字符/单元格映射 |
-| `VirtualTerminalControl` | 可见行虚拟化、滚动锚点、跨行选择、复制和键入代理 |
-| `HexCodec` | HEX 文本解析和字节格式化 |
-| `TextEscapeCodec` | 底部文本发送与文本预设的转义解析 |
-| `CommandPresetLimits` | 快捷指令集合、配置文件和备份共用的容量上限 |
-| `CommandPresetJsonCodec` | 本地存储与用户备份共用的 JSON 格式、校验和规范化 |
-| `HighResolutionPeriodicTimer` | 使用 Windows 高分辨率等待计时器提供固定周期调度 |
-| `WindowIconManager` | 从唯一 ICO 创建标题栏图像，并按窗口 DPI 从当前 EXE 提取 Win32 窗口图标 |
-| `CommandPresetStorageService` | 快捷指令 JSON 读写 |
-| `Views/MainPage.SerialPort` | 串口 UI 事件、接收队列与 DispatcherQueue 协调 |
-| `Views/MainPage.Terminal` | 日志选择器、终端渲染、选择与滚动协调 |
-| `Views/MainPage.CommandPresets` | 快捷指令控件事件与焦点处理 |
-| `MainWindow` | 窗口尺寸、标题栏主菜单、字体设置对话框、备份文件选择器和连接标题 |
+| 组件                              | 职责                                             |
+| ------------------------------- | ---------------------------------------------- |
+| `MainViewModel`                 | 聚合连接、终端、外观、发送、录制、快捷指令和循环发送 ViewModel           |
+| `ConnectionViewModel`           | 端口集合、连接状态以及串口服务协调                              |
+| `TerminalViewModel`             | 完整会话、流式解码和 RX/TX 计数                            |
+| `TerminalAppearanceViewModel`   | UI 无关的终端字体名称、字号范围和默认值                          |
+| `TransmissionViewModel`         | 向 UI 暴露纯发送引擎                                   |
+| `CommandPresetsViewModel`       | 快捷指令集合、编辑、顺序保存、JSON 备份和持久化协调                   |
+| `ReceiveRecordingViewModel`     | 原始 RX 录制启停、文件路径和失败通知                           |
+| `ScheduledSendViewModel`        | 底部单载荷循环与快捷指令列表循环的后台调度、互斥状态和并发写入保护              |
+| `RawReceiveRecordingService`    | 有界接收队列、后台顺序写盘、刷新关闭和写入错误处理                      |
+| `SerialPayloadEngine`           | 文本转义、HEX、行尾和内容区输入的纯 C# 解释规则                    |
+| `SerialPortService`             | 串口会话生命周期、收发、释放和无感自动恢复                          |
+| `SerialPortDiscovery`           | COM 端口枚举、SetupAPI 友好名称和端口存在性检查                 |
+| `SerialPortFactory`             | 初次连接与自动恢复共用的串口参数映射和实例创建                        |
+| `StreamingTextDecoder`          | 跨批次文本解码和无效字节替换                                 |
+| `TerminalBuffer`                | 文本/HEX 格式和完整分段会话存储                             |
+| `VirtualTerminalDocument`       | 完整活动文档、定宽折行索引和字符/单元格映射                         |
+| `VirtualTerminalControl`        | 可见行虚拟化、滚动锚点、跨行选择、复制和键入代理                       |
+| `HexCodec`                      | HEX 文本解析和字节格式化                                 |
+| `TextEscapeCodec`               | 底部文本发送与文本预设的转义解析                               |
+| `CommandPresetLimits`           | 快捷指令集合、配置文件和备份共用的容量上限                          |
+| `CommandPresetJsonCodec`        | 本地存储与用户备份共用的 JSON 格式、校验和规范化                    |
+| `HighResolutionPeriodicTimer`   | 使用 Windows 高分辨率等待计时器提供固定周期调度                   |
+| `WindowIconManager`             | 从唯一 ICO 创建标题栏图像，并按窗口 DPI 从当前 EXE 提取 Win32 窗口图标 |
+| `CommandPresetStorageService`   | 快捷指令 JSON 读写                                   |
+| `Views/MainPage.SerialPort`     | 串口 UI 事件、接收队列与 DispatcherQueue 协调              |
+| `Views/MainPage.Terminal`       | 日志选择器、终端渲染、选择与滚动协调                             |
+| `Views/MainPage.CommandPresets` | 快捷指令控件事件与焦点处理                                  |
+| `MainWindow`                    | 窗口尺寸、标题栏主菜单、字体设置对话框、备份文件选择器和连接标题               |
 
 ## 代码组织与命名
 
 工程参考 [Files 的源码组织](https://github.com/files-community/Files/tree/main/src) 与 [Windows Calculator 架构](https://github.com/microsoft/calculator/blob/main/docs/ApplicationArchitecture.md)，采用按职责分层、根 ViewModel 聚合功能 ViewModel、核心规则不依赖 UI 的组织方式。解决方案只拆分核心类库和 WinUI 应用两个 C# 产品项目，不照搬参考项目的语言和复杂项目数量。
 
-| 对象 | 约定 | 示例 |
-| --- | --- | --- |
-| 类型、属性、公开或私有方法 | PascalCase；名称说明职责或动作 | `SerialPortService`、`DrainReceiveQueue` |
-| 接口 | `I` + PascalCase | `ISerialPortService`、`IPeriodicTimer` |
-| 私有字段 | `_camelCase` | `_serialPortService`、`_receiveQueue` |
-| 常量 | `UPPER_SNAKE_CASE` | `RECEIVE_DRAIN_MAX_BYTES` |
-| 布尔值 | 优先使用 `Is`、`Has`、`Can`、`Should` | `shouldShowErrors` |
-| 模型 | 以 `Model` 结尾 | `CommandPresetModel` |
-| 服务 | 以 `Service` 结尾 | `CommandPresetStorageService` |
-| 异步方法 | 以 `Async` 结尾 | 后续异步 API 应遵循该规则 |
+| 对象            | 约定                             | 示例                                      |
+| ------------- | ------------------------------ | --------------------------------------- |
+| 类型、属性、公开或私有方法 | PascalCase；名称说明职责或动作           | `SerialPortService`、`DrainReceiveQueue` |
+| 接口            | `I` + PascalCase               | `ISerialPortService`、`IPeriodicTimer`   |
+| 私有字段          | `_camelCase`                   | `_serialPortService`、`_receiveQueue`    |
+| 常量            | `UPPER_SNAKE_CASE`             | `RECEIVE_DRAIN_MAX_BYTES`               |
+| 布尔值           | 优先使用 `Is`、`Has`、`Can`、`Should` | `shouldShowErrors`                      |
+| 模型            | 以 `Model` 结尾                   | `CommandPresetModel`                    |
+| 服务            | 以 `Service` 结尾                 | `CommandPresetStorageService`           |
+| 异步方法          | 以 `Async` 结尾                   | 后续异步 API 应遵循该规则                         |
 
 文件夹与命名空间保持一致，例如 `src/Comet/Views` 对应 `Comet.Views`，`src/Comet.Core/Transmission` 对应 `Comet.Core.Transmission`，`src/Comet.Core/ViewModels` 对应 `Comet.ViewModels`。文件名与其中的主类型保持一致，一个文件原则上只定义一个顶层类型。同一页面的 XAML 和 partial 文件放在 `Views` 中；这些文件只协调 WinUI 行为，状态与核心规则进入 `Comet.Core`。
 
@@ -403,15 +403,15 @@ Comet/
 
 ## 技术基线
 
-| 项目 | 当前配置 |
-| --- | --- |
-| 语言 | C# |
-| 运行时 | .NET 10 |
-| 核心 | `Comet.Core` 纯 C# 类库，不依赖 WinUI |
-| UI | WinUI 3 / Windows App SDK 2.4 |
-| 测试 | MSTest 4.1 / Microsoft Testing Platform |
-| 串口 | `System.IO.Ports` 10.0.11 |
-| Windows SDK Build Tools | 10.0.26100.7705 |
-| 最低 Windows | Windows 10 1809 / build 17763 |
-| 发布架构 | x86、x64、ARM64 |
-| 包类型 | Unpackaged、自包含 |
+| 项目                      | 当前配置                                    |
+| ----------------------- | --------------------------------------- |
+| 语言                      | C#                                      |
+| 运行时                     | .NET 10                                 |
+| 核心                      | `Comet.Core` 纯 C# 类库，不依赖 WinUI          |
+| UI                      | WinUI 3 / Windows App SDK 2.4           |
+| 测试                      | MSTest 4.1 / Microsoft Testing Platform |
+| 串口                      | `System.IO.Ports` 10.0.11               |
+| Windows SDK Build Tools | 10.0.26100.7705                         |
+| 最低 Windows              | Windows 10 1809 / build 17763           |
+| 发布架构                    | x86、x64、ARM64                           |
+| 包类型                     | Unpackaged、自包含                          |

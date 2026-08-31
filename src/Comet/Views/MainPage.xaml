@@ -20,13 +20,14 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid ColumnSpacing="14">
+        <Grid x:Name="ShellContentGrid" ColumnSpacing="14">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="256" />
+                <ColumnDefinition x:Name="ConnectionPanelColumn" Width="256" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <Border
+                x:Name="ConnectionPanel"
                 Padding="16"
                 Background="{StaticResource CometSurfaceBrush}"
                 BorderBrush="{StaticResource CometTerminalBorderBrush}"
@@ -43,16 +44,39 @@
 
                     <!--  Offset the narrow scroll bar into the gutter without changing content width.  -->
                     <StackPanel Margin="0,0,12,0" Spacing="14">
-                        <StackPanel Spacing="3">
-                            <TextBlock
-                                FontSize="16"
-                                FontWeight="SemiBold"
-                                Text="连接设置" />
-                            <TextBlock
-                                FontSize="12"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Text="配置设备的串口通信参数" />
-                        </StackPanel>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Spacing="3">
+                                <TextBlock
+                                    FontSize="16"
+                                    FontWeight="SemiBold"
+                                    Text="连接设置" />
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="配置设备的串口通信参数" />
+                            </StackPanel>
+
+                            <Button
+                                x:Name="ConnectionPanelCollapseButton"
+                                Grid.Column="1"
+                                Width="30"
+                                Height="28"
+                                Padding="0"
+                                VerticalAlignment="Top"
+                                AutomationProperties.Name="收起连接设置"
+                                Click="ConnectionPanelCollapseButton_Click"
+                                ToolTipService.ToolTip="收起连接设置">
+                                <FontIcon
+                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                    FontSize="13"
+                                    Glyph="&#xE76B;" />
+                            </Button>
+                        </Grid>
 
                         <StackPanel Spacing="12">
                             <StackPanel x:Name="SerialConnectionSettingsPanel" Spacing="12">
@@ -202,6 +226,20 @@
                             VerticalAlignment="Center"
                             Orientation="Horizontal"
                             Spacing="8">
+                            <Button
+                                x:Name="ConnectionPanelExpandButton"
+                                Width="34"
+                                Height="32"
+                                Padding="0"
+                                AutomationProperties.Name="展开连接设置"
+                                Click="ConnectionPanelExpandButton_Click"
+                                ToolTipService.ToolTip="展开连接设置"
+                                Visibility="Collapsed">
+                                <FontIcon
+                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                    FontSize="14"
+                                    Glyph="&#xE76C;" />
+                            </Button>
                             <TextBlock
                                 Margin="0,-2,0,2"
                                 VerticalAlignment="Center"

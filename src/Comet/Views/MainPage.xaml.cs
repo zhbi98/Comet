@@ -13,6 +13,9 @@ namespace Comet.Views;
 public sealed partial class MainPage : Page
 {
     private const double CompactToolbarWidth = 700;
+    private const double ExpandedShellColumnSpacing = 14;
+
+    private static readonly GridLength ExpandedConnectionPanelWidth = new(256);
 
     private readonly ConcurrentQueue<SerialBytesReceivedEventArgs> _receiveQueue;
     private readonly DispatcherQueueTimer _terminalRenderTimer;
@@ -25,6 +28,7 @@ public sealed partial class MainPage : Page
     private bool _isUnloaded;
     private int _shutdownState;
     private bool _isCompactTerminalToolbar;
+    private bool _isConnectionPanelCollapsed;
 
     public MainViewModel ViewModel { get; }
 
@@ -87,6 +91,30 @@ public sealed partial class MainPage : Page
     private void TerminalToolbarGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         UpdateTerminalToolbarLayout();
+    }
+
+    private void ConnectionPanelCollapseButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetConnectionPanelCollapsed(true);
+    }
+
+    private void ConnectionPanelExpandButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetConnectionPanelCollapsed(false);
+    }
+
+    private void SetConnectionPanelCollapsed(bool isCollapsed)
+    {
+        if (_isConnectionPanelCollapsed == isCollapsed)
+        {
+            return;
+        }
+
+        _isConnectionPanelCollapsed = isCollapsed;
+        ConnectionPanel.Visibility = isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        ConnectionPanelColumn.Width = isCollapsed ? new GridLength(0) : ExpandedConnectionPanelWidth;
+        ConnectionPanelExpandButton.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
+        ShellContentGrid.ColumnSpacing = isCollapsed ? 0 : ExpandedShellColumnSpacing;
     }
 
     private void UpdateTerminalToolbarLayout()
