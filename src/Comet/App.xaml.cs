@@ -24,6 +24,7 @@ public partial class App : Application
         // services before injecting the UI-independent root view model.
         var viewModel = new MainViewModel(
             new SerialPortService(),
+            new AppSettingsStorageService(),
             new CommandPresetStorageService(),
             new RawReceiveRecordingService(),
             callback => new HighResolutionPeriodicTimer(callback));

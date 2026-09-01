@@ -44,8 +44,6 @@ public sealed partial class MainPage : Page
         _receiveQueue = new ConcurrentQueue<SerialBytesReceivedEventArgs>();
 
         SendTextBox.TextChanged += (_, _) => UpdateRepeatSendPayload();
-        SendHexCheckBox.Click += (_, _) => UpdateRepeatSendPayload();
-        LineEndingComboBox.SelectionChanged += (_, _) => UpdateRepeatSendPayload();
 
         _terminalRenderTimer = DispatcherQueue.CreateTimer();
         _terminalRenderTimer.Interval = TimeSpan.FromMilliseconds(50);
@@ -57,14 +55,6 @@ public sealed partial class MainPage : Page
         ViewModel.TerminalAppearance.PropertyChanged += TerminalAppearance_PropertyChanged;
         ViewModel.CommandPresets.PropertyChanged += CommandPresets_PropertyChanged;
         ApplyTerminalAppearance();
-        AutoScrollCheckBox.Click += (_, _) =>
-        {
-            TerminalView.AutoScroll = AutoScrollCheckBox.IsChecked == true;
-            if (TerminalView.AutoScroll)
-            {
-                TerminalView.ScrollToEnd();
-            }
-        };
         ViewModel.Connection.BytesReceived += SerialPort_BytesReceived;
         ViewModel.Connection.ErrorOccurred += SerialPort_ErrorOccurred;
         ViewModel.ReceiveRecording.StateChanged += ReceiveRecording_StateChanged;
@@ -73,13 +63,19 @@ public sealed partial class MainPage : Page
         ViewModel.ScheduledSending.SendFailed += ScheduledSending_SendFailed;
 
         InitializeSerialOptions();
+        ApplyUserSettings();
+        AttachUserSettingsChangeHandlers();
         InitializeCommandPresets();
     }
 
     private void Page_Loaded(object sender, RoutedEventArgs e)
     {
         _isUnloaded = false;
-        RefreshPorts();
+        RunWithoutUserSettingsSave(() =>
+        {
+            RefreshPorts();
+            ApplyStoredPortSelection();
+        });
         UpdateConnectionState();
     }
 
@@ -148,6 +144,7 @@ public sealed partial class MainPage : Page
         }
 
         _isUnloaded = true;
+        SaveUserSettings();
         ExitPresetReorderMode();
         ViewModel.TerminalAppearance.PropertyChanged -= TerminalAppearance_PropertyChanged;
         ViewModel.CommandPresets.PropertyChanged -= CommandPresets_PropertyChanged;
@@ -176,6 +173,7 @@ public sealed partial class MainPage : Page
             nameof(TerminalAppearanceViewModel.FontSize))
         {
             ApplyTerminalAppearance();
+            SaveUserSettings();
         }
     }
 
@@ -189,19 +187,19 @@ public sealed partial class MainPage : Page
     private void InitializeSerialOptions()
     {
         BaudRateComboBox.ItemsSource = new[] { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
-        BaudRateComboBox.SelectedItem = 115200;
+        BaudRateComboBox.SelectedItem = SerialSettingsModel.DEFAULT_BAUD_RATE;
         DataBitsComboBox.ItemsSource = new[] { 5, 6, 7, 8 };
-        DataBitsComboBox.SelectedItem = 8;
+        DataBitsComboBox.SelectedItem = SerialSettingsModel.DEFAULT_DATA_BITS;
         StopBitsComboBox.ItemsSource = new[] { "1", "1.5", "2" };
-        StopBitsComboBox.SelectedIndex = 0;
+        StopBitsComboBox.SelectedItem = SerialSettingsModel.DEFAULT_STOP_BITS;
         ParityComboBox.ItemsSource = new[] { "None", "Odd", "Even", "Mark", "Space" };
-        ParityComboBox.SelectedIndex = 0;
+        ParityComboBox.SelectedItem = SerialSettingsModel.DEFAULT_PARITY;
         HandshakeComboBox.ItemsSource = new[] { "None", "XOn/XOff", "RTS/CTS", "RTS/CTS + XOn/XOff" };
-        HandshakeComboBox.SelectedIndex = 0;
+        HandshakeComboBox.SelectedItem = SerialSettingsModel.DEFAULT_HANDSHAKE;
         EncodingComboBox.ItemsSource = new[] { "UTF-8", "GBK", "ASCII" };
-        EncodingComboBox.SelectedIndex = 0;
+        EncodingComboBox.SelectedItem = SerialSettingsModel.DEFAULT_ENCODING_NAME;
         LineEndingComboBox.ItemsSource = new[] { "无", "CRLF", "CR", "LF" };
-        LineEndingComboBox.SelectedIndex = 0;
+        LineEndingComboBox.SelectedItem = SendSettingsModel.DEFAULT_LINE_ENDING;
     }
 
     private void ShowMessage(string title, string message, InfoBarSeverity severity)

@@ -35,6 +35,7 @@ public sealed partial class MainPage
             AutoScrollCheckBox.IsChecked == true);
         EmptyTerminalPanel.Visibility = ViewModel.Terminal.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
         UpdateTerminalItemStatus();
+        SaveUserSettings();
     }
 
     private void SendTerminalInput(string text)

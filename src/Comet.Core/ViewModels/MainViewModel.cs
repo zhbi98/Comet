@@ -9,20 +9,27 @@ public sealed class MainViewModel : IDisposable
 {
     public MainViewModel(
         ISerialPortService serialPortService,
+        IAppSettingsStorageService appSettingsStorageService,
         ICommandPresetStorageService commandPresetStorageService,
         IRawReceiveRecordingService rawReceiveRecordingService,
         Func<Action, IPeriodicTimer> scheduledTimerFactory)
     {
+        UserSettings = new UserSettingsViewModel(appSettingsStorageService);
+
         // Feature view models share the same connection instance so direct, preset,
         // terminal, and scheduled sends observe one transport lifecycle.
         Connection = new ConnectionViewModel(serialPortService);
         Terminal = new TerminalViewModel();
         TerminalAppearance = new TerminalAppearanceViewModel();
+        TerminalAppearance.FontFamilyName = UserSettings.Current.Terminal.FontFamilyName;
+        TerminalAppearance.FontSize = UserSettings.Current.Terminal.FontSize;
         Transmission = new TransmissionViewModel();
         CommandPresets = new CommandPresetsViewModel(commandPresetStorageService);
         ReceiveRecording = new ReceiveRecordingViewModel(rawReceiveRecordingService);
         ScheduledSending = new ScheduledSendViewModel(Connection, scheduledTimerFactory);
     }
+
+    public UserSettingsViewModel UserSettings { get; }
 
     public ConnectionViewModel Connection { get; }
 

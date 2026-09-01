@@ -22,7 +22,7 @@
             <Style x:Key="MainMenuFlyoutPresenterStyle" TargetType="MenuFlyoutPresenter">
                 <!--  The title content is raised slightly, so the flyout needs its own gap below the title bar.  -->
                 <Setter Property="MinWidth" Value="196" />
-                <Setter Property="Margin" Value="0,8,0,0" />
+                <Setter Property="Margin" Value="0,10,0,0" />
                 <Setter Property="Padding" Value="4" />
                 <Setter Property="CornerRadius" Value="8" />
             </Style>

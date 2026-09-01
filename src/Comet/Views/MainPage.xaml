@@ -452,7 +452,7 @@
                                 AcceptsReturn="True"
                                 FontFamily="Cascadia Mono"
                                 FontSize="13"
-                                PlaceholderText="输入文本（支持 \r、\n、\t、\xNN），或输入 HEX：AA 01 0D 0A"
+                                PlaceholderText="输入文本 (支持 \r,\n,\t,\xNN), 或 HEX：AA 01 0D 0A"
                                 TextWrapping="Wrap" />
                             <Button
                                 x:Name="SendButton"
