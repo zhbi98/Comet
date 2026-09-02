@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using Comet.Core.Terminal;
 using Comet.Core.Text;
@@ -70,13 +71,90 @@ public sealed class TerminalSessionTests
         Assert.AreEqual("A\rB", buffer.GetSessionText());
     }
 
-    private static TerminalEntryModel CreateReceiveEntry(string text, byte[] bytes) => new()
+    [TestMethod]
+    public void ReceiveGrouping_StartsNewGroupAtIdleThreshold()
     {
-        Time = "12:34:56.789",
+        const long first = 1_000_000;
+        var belowThreshold = AddElapsed(first, TerminalReceiveGrouping.IdleThreshold - TimeSpan.FromMilliseconds(1));
+        var atThreshold = AddElapsed(first, TerminalReceiveGrouping.IdleThreshold);
+
+        Assert.IsTrue(TerminalReceiveGrouping.StartsNewGroup(null, first));
+        Assert.IsFalse(TerminalReceiveGrouping.StartsNewGroup(first, belowThreshold));
+        Assert.IsTrue(TerminalReceiveGrouping.StartsNewGroup(first, atThreshold));
+        Assert.IsTrue(TerminalReceiveGrouping.StartsNewGroup(first, first - 1));
+    }
+
+    [TestMethod]
+    public void DetailedReceive_AddsNewTimestampAfterIdleGroupBoundaryInBothViews()
+    {
+        var buffer = new TerminalBuffer();
+        var first = CreateReceiveEntry(
+            "A",
+            [0x41],
+            isDetailed: true,
+            time: "12:34:56.000",
+            startsNewReceiveGroup: true);
+        var second = CreateReceiveEntry(
+            "B",
+            [0x42],
+            isDetailed: true,
+            time: "12:34:56.100");
+        var third = CreateReceiveEntry(
+            "C",
+            [0x43],
+            isDetailed: true,
+            time: "12:34:56.600",
+            startsNewReceiveGroup: true);
+
+        buffer.Append(first, shouldIncludeInDisplay: true, isReceiveDisplayedAsHex: false);
+        buffer.Append(second, shouldIncludeInDisplay: true, isReceiveDisplayedAsHex: false);
+        var thirdUpdate = buffer.Append(third, shouldIncludeInDisplay: true, isReceiveDisplayedAsHex: false);
+
+        Assert.AreEqual(Environment.NewLine + third.GetDetailedText("C"), thirdUpdate.AppendedText);
+        Assert.AreEqual(
+            first.GetDetailedText("A") + "B" + Environment.NewLine + third.GetDetailedText("C"),
+            buffer.GetSessionText());
+
+        buffer.SetReceiveAsHex(true);
+        Assert.AreEqual(
+            first.GetDetailedText("41") + " 42" + Environment.NewLine + third.GetDetailedText("43"),
+            buffer.GetSessionText());
+    }
+
+    [TestMethod]
+    public void DetailedText_UsesTwoSpacesBetweenDirectionAndContent()
+    {
+        foreach (var direction in new[] { "RX", "TX", "SYS" })
+        {
+            var entry = new TerminalEntryModel
+            {
+                Time = "23:06:48.925",
+                Direction = direction,
+                Text = "INFO",
+                IsDetailed = true,
+                IsHex = false
+            };
+
+            Assert.AreEqual($"23:06:48.925  {direction}  INFO", entry.GetDetailedText("INFO"));
+        }
+    }
+
+    private static TerminalEntryModel CreateReceiveEntry(
+        string text,
+        byte[] bytes,
+        bool isDetailed = false,
+        string time = "12:34:56.789",
+        bool startsNewReceiveGroup = false) => new()
+    {
+        Time = time,
         Direction = "RX",
         Text = text,
-        IsDetailed = false,
+        IsDetailed = isDetailed,
         IsHex = false,
-        RawBytes = bytes
+        RawBytes = bytes,
+        StartsNewReceiveGroup = startsNewReceiveGroup
     };
+
+    private static long AddElapsed(long timestamp, TimeSpan elapsed) =>
+        timestamp + checked((long)Math.Ceiling(elapsed.TotalSeconds * Stopwatch.Frequency));
 }

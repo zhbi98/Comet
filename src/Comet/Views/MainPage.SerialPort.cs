@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Comet.Core.Terminal;
 using Comet.Core.Transmission;
 using Comet.Converters;
 using Comet.Models;
@@ -50,6 +51,7 @@ public sealed partial class MainPage
 
             ViewModel.Connection.Open(connectionOptions);
             ViewModel.Terminal.ResetDecoder();
+            _lastReceiveTimestamp = null;
             var parity = SerialPortSettingsConverter.GetParityShortName(connectionOptions.Parity);
             var stopBits = SerialPortSettingsConverter.GetStopBitsShortName(connectionOptions.StopBits);
             AppendTerminalEntry("SYS", $"已连接 {portName}  ·  {connectionOptions.BaudRate} / {connectionOptions.DataBits}{parity}{stopBits}");
@@ -72,6 +74,7 @@ public sealed partial class MainPage
         await StopReceiveRecordingAsync(showConfirmation: false);
         ViewModel.Connection.Close();
         ViewModel.Terminal.ResetDecoder();
+        _lastReceiveTimestamp = null;
         AppendTerminalEntry("SYS", $"{portName} 已断开");
         UpdateConnectionState();
         RefreshPorts();
@@ -213,17 +216,8 @@ public sealed partial class MainPage
 
         if (totalLength > 0)
         {
-            var data = new byte[totalLength];
-            var offset = 0;
-            foreach (var chunk in chunks)
-            {
-                Buffer.BlockCopy(chunk.Data, 0, data, offset, chunk.Data.Length);
-                offset += chunk.Data.Length;
-            }
-
-            ViewModel.Terminal.RecordReceived(data.Length);
-            var text = ViewModel.Terminal.DecodeReceived(data, GetSelectedTextEncoding());
-            AppendTerminalEntry("RX", text, rawBytes: data, timestamp: chunks[0].ReceivedAt);
+            ViewModel.Terminal.RecordReceived(totalLength);
+            AppendReceiveGroups(chunks);
         }
 
         if (!_receiveQueue.IsEmpty &&
@@ -239,6 +233,58 @@ public sealed partial class MainPage
         {
             ScheduleReceiveQueueDrain();
         }
+    }
+
+    private void AppendReceiveGroups(IReadOnlyList<SerialBytesReceivedEventArgs> chunks)
+    {
+        var groupStart = 0;
+        for (var index = 1; index <= chunks.Count; index++)
+        {
+            if (index < chunks.Count &&
+                !TerminalReceiveGrouping.StartsNewGroup(
+                    chunks[index - 1].ReceivedTimestamp,
+                    chunks[index].ReceivedTimestamp))
+            {
+                continue;
+            }
+
+            AppendReceiveGroup(chunks, groupStart, index);
+            groupStart = index;
+        }
+    }
+
+    private void AppendReceiveGroup(
+        IReadOnlyList<SerialBytesReceivedEventArgs> chunks,
+        int start,
+        int end)
+    {
+        var byteCount = 0;
+        for (var index = start; index < end; index++)
+        {
+            byteCount += chunks[index].Data.Length;
+        }
+
+        var data = new byte[byteCount];
+        var offset = 0;
+        for (var index = start; index < end; index++)
+        {
+            var chunk = chunks[index];
+            Buffer.BlockCopy(chunk.Data, 0, data, offset, chunk.Data.Length);
+            offset += chunk.Data.Length;
+        }
+
+        var firstChunk = chunks[start];
+        var startsNewReceiveGroup = start > 0 || TerminalReceiveGrouping.StartsNewGroup(
+            _lastReceiveTimestamp,
+            firstChunk.ReceivedTimestamp);
+        var text = ViewModel.Terminal.DecodeReceived(data, GetSelectedTextEncoding());
+        AppendTerminalEntry(
+            "RX",
+            text,
+            rawBytes: data,
+            timestamp: firstChunk.ReceivedAt,
+            startsNewReceiveGroup: startsNewReceiveGroup);
+        _lastReceiveTimestamp = chunks[end - 1].ReceivedTimestamp;
     }
 
     private void SerialPort_ErrorOccurred(string message)

@@ -89,10 +89,11 @@ internal sealed class TerminalBuffer
             else if (_lastEntryWasDetailed &&
                      _lastDetailedDirection == "RX" &&
                      entry.Direction == "RX" &&
-                     _lastEntryWasHex == isDisplayedAsHex)
+                     _lastEntryWasHex == isDisplayedAsHex &&
+                     !entry.StartsNewReceiveGroup)
             {
-                // Transport chunks are not terminal lines. Consecutive RX chunks
-                // remain one stream until the direction or display mode changes.
+                // Closely spaced transport chunks remain one stream. The page marks
+                // a new group after an idle interval so its timestamp is not discarded.
                 AppendHexSeparatorIfNeeded(appended, displayText, isDisplayedAsHex);
                 appended.Append(displayText);
             }

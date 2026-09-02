@@ -15,6 +15,7 @@ public sealed partial class MainPage
         _terminalRenderTimer.Stop();
         _isTerminalRenderPending = false;
         _pendingTerminalText.Clear();
+        _lastReceiveTimestamp = null;
         ViewModel.Terminal.Clear();
         TerminalView.Clear();
         EmptyTerminalPanel.Visibility = Visibility.Visible;
@@ -111,7 +112,8 @@ public sealed partial class MainPage
         string text,
         bool isHex = false,
         byte[]? rawBytes = null,
-        DateTime? timestamp = null)
+        DateTime? timestamp = null,
+        bool startsNewReceiveGroup = false)
     {
         var shouldShowDetails = TimestampCheckBox.IsChecked == true;
         var entry = new TerminalEntryModel
@@ -121,7 +123,8 @@ public sealed partial class MainPage
             Text = text,
             IsDetailed = shouldShowDetails,
             IsHex = isHex,
-            RawBytes = rawBytes
+            RawBytes = rawBytes,
+            StartsNewReceiveGroup = startsNewReceiveGroup
         };
 
         var shouldDisplay = shouldShowDetails || direction == "RX";

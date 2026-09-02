@@ -11,6 +11,7 @@ public sealed class TerminalEntryModel
     public required bool IsDetailed { get; init; }
     public required bool IsHex { get; init; }
     public byte[]? RawBytes { get; init; }
+    public bool StartsNewReceiveGroup { get; init; }
 
-    public string GetDetailedText(string displayText) => $"{Time}  {Direction,-3}  {displayText}";
+    public string GetDetailedText(string displayText) => $"{Time}  {Direction}  {displayText}";
 }
