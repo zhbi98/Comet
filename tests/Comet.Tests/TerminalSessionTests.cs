@@ -140,35 +140,48 @@ public sealed class TerminalSessionTests
     }
 
     [TestMethod]
-    public void HistoryLimit_EvictsTheSameOldestReceiveBoundaryFromBothViews()
+    public void TextCapacity_PreservesMatchingReceiveBoundariesInHexView()
     {
-        const int capacityBytes = 512;
-        var buffer = new TerminalBuffer(capacityBytes);
-        var firstBytes = Enumerable.Repeat((byte)0x41, 40).ToArray();
-        var secondBytes = Enumerable.Repeat((byte)0x42, 40).ToArray();
+        const int textCapacity = 80;
+        const int segmentLength = 40;
+        var buffer = new TerminalBuffer(textCapacity);
+        var firstText = new string('A', segmentLength);
+        var secondText = new string('B', segmentLength);
+        var thirdText = new string('C', segmentLength);
+        var firstBytes = Enumerable.Repeat((byte)0x41, segmentLength).ToArray();
+        var secondBytes = Enumerable.Repeat((byte)0x42, segmentLength).ToArray();
+        var thirdBytes = Enumerable.Repeat((byte)0x43, segmentLength).ToArray();
 
         buffer.Append(
-            CreateReceiveEntry(new string('A', firstBytes.Length), firstBytes),
+            CreateReceiveEntry(firstText, firstBytes),
             shouldIncludeInDisplay: true,
             isReceiveDisplayedAsHex: false);
         buffer.Append(
-            CreateReceiveEntry(new string('B', secondBytes.Length), secondBytes),
+            CreateReceiveEntry(secondText, secondBytes),
             shouldIncludeInDisplay: true,
             isReceiveDisplayedAsHex: false);
 
-        var textSession = buffer.GetSessionText();
-        Assert.IsFalse(textSession.Contains('A'));
-        StringAssert.EndsWith(textSession, new string('B', secondBytes.Length));
+        Assert.AreEqual(firstText + secondText, buffer.GetSessionText());
 
         buffer.SetReceiveAsHex(true);
-        var hexSession = buffer.GetSessionText();
-        Assert.IsFalse(hexSession.Contains("41"));
-        StringAssert.Contains(hexSession, "42 42 42");
-        var hexLength = buffer.SessionLength;
-        buffer.SetReceiveAsHex(false);
-        Assert.IsLessThanOrEqualTo(
-            capacityBytes,
-            (buffer.SessionLength + hexLength) * sizeof(char));
+        Assert.IsGreaterThan(textCapacity, buffer.SessionLength);
+        Assert.IsTrue(
+            HexCodec.TryParse(buffer.GetSessionText(), out var hexBytes, out var error),
+            error);
+        CollectionAssert.AreEqual(firstBytes.Concat(secondBytes).ToArray(), hexBytes);
+
+        buffer.Append(
+            CreateReceiveEntry(thirdText, thirdBytes),
+            shouldIncludeInDisplay: true,
+            isReceiveDisplayedAsHex: false);
+
+        Assert.AreEqual(secondText + thirdText, buffer.GetSessionText());
+
+        buffer.SetReceiveAsHex(true);
+        Assert.IsTrue(
+            HexCodec.TryParse(buffer.GetSessionText(), out hexBytes, out error),
+            error);
+        CollectionAssert.AreEqual(secondBytes.Concat(thirdBytes).ToArray(), hexBytes);
     }
 
     private static TerminalEntryModel CreateReceiveEntry(

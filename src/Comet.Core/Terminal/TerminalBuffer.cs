@@ -9,31 +9,24 @@ namespace Comet.Core.Terminal;
 /// </summary>
 internal sealed class TerminalBuffer
 {
-    internal const long DEFAULT_STORAGE_CAPACITY_BYTES = 6L * 1024 * 1024;
+    internal const int DEFAULT_TEXT_CHARACTER_CAPACITY = 6 * 1024 * 1024;
 
     private readonly DisplayState _textDisplay = new();
     private readonly DisplayState _hexDisplay = new();
-    private readonly long _storageCapacityBytes;
+    private readonly int _textCharacterCapacity;
     private bool _isReceiveDisplayedAsHex;
 
     private DisplayState CurrentDisplay => _isReceiveDisplayedAsHex ? _hexDisplay : _textDisplay;
 
-    private long StoredByteCount =>
-        ((long)_textDisplay.Length + _hexDisplay.Length) * sizeof(char);
-
-    public TerminalBuffer(long storageCapacityBytes = DEFAULT_STORAGE_CAPACITY_BYTES)
+    public TerminalBuffer(int textCharacterCapacity = DEFAULT_TEXT_CHARACTER_CAPACITY)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(storageCapacityBytes);
-        _storageCapacityBytes = storageCapacityBytes;
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(textCharacterCapacity);
+        _textCharacterCapacity = textCharacterCapacity;
     }
 
     public bool IsEmpty => CurrentDisplay.IsEmpty;
 
-    public int CurrentLength => CurrentDisplay.Length;
-
     public int SessionLength => CurrentDisplay.Length;
-
-    public string GetText() => CurrentDisplay.GetText();
 
     public string GetSessionText() => CurrentDisplay.GetText();
 
@@ -49,7 +42,7 @@ internal sealed class TerminalBuffer
         // original byte batches or a conversion from the currently visible document.
         var textUpdate = _textDisplay.Append(entry, isReceiveDisplayedAsHex: false);
         var hexUpdate = _hexDisplay.Append(entry, isReceiveDisplayedAsHex: true);
-        TrimToLimit();
+        TrimToTextCapacity();
         return isReceiveDisplayedAsHex ? hexUpdate : textUpdate;
     }
 
@@ -61,9 +54,9 @@ internal sealed class TerminalBuffer
         _hexDisplay.Clear();
     }
 
-    private void TrimToLimit()
+    private void TrimToTextCapacity()
     {
-        while (StoredByteCount > _storageCapacityBytes &&
+        while (_textDisplay.Length > _textCharacterCapacity &&
                _textDisplay.SegmentCount > 1)
         {
             _textDisplay.RemoveFirstSegment();
