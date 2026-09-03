@@ -87,7 +87,17 @@ public sealed partial class MainPage : Page
 
     private void TerminalToolbarGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        UpdateTerminalToolbarLayout();
+        var isCompact = e.NewSize.Width is > 0 and < CompactToolbarWidth;
+        if (_isCompactTerminalToolbar == isCompact)
+        {
+            return;
+        }
+
+        _isCompactTerminalToolbar = isCompact;
+        VisualStateManager.GoToState(
+            this,
+            isCompact ? "CompactTerminalToolbar" : "RegularTerminalToolbar",
+            useTransitions: false);
     }
 
     private void ConnectionPanelCollapseButton_Click(object sender, RoutedEventArgs e)
@@ -112,27 +122,6 @@ public sealed partial class MainPage : Page
         ConnectionPanelColumn.Width = isCollapsed ? new GridLength(0) : ExpandedConnectionPanelWidth;
         ConnectionPanelExpandButton.Visibility = isCollapsed ? Visibility.Visible : Visibility.Collapsed;
         ShellContentGrid.ColumnSpacing = isCollapsed ? 0 : ExpandedShellColumnSpacing;
-    }
-
-    private void UpdateTerminalToolbarLayout()
-    {
-        var isCompact = TerminalToolbarGrid.ActualWidth > 0 &&
-                        TerminalToolbarGrid.ActualWidth < CompactToolbarWidth;
-        if (_isCompactTerminalToolbar == isCompact)
-        {
-            return;
-        }
-
-        _isCompactTerminalToolbar = isCompact;
-        // Keep the toolbar on one line. As the terminal column narrows, reduce the
-        // gap between the title and action group before reducing button dimensions.
-        TerminalToolbarGrid.ColumnSpacing = isCompact ? 2 : 8;
-        TerminalToolbarActions.Spacing = isCompact ? 3 : 5;
-
-        // Compact mode keeps every action reachable inside the reduced terminal width.
-        PresetPanelToggleButton.Width = isCompact ? 30 : 34;
-        SaveLogButton.Width = isCompact ? 30 : 34;
-        ClearTerminalButton.Width = isCompact ? 30 : 34;
     }
 
     internal void Shutdown()

@@ -34,8 +34,8 @@ public sealed partial class MainWindow : Window
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
-            presenter.PreferredMinimumWidth = 1200;
-            presenter.PreferredMinimumHeight = 720;
+            presenter.PreferredMinimumWidth = 1140;
+            presenter.PreferredMinimumHeight = 640;
         }
 
         var windowSize = new SizeInt32(1200, 720);

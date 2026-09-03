@@ -20,6 +20,24 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="TerminalToolbarLayoutStates">
+                <VisualState x:Name="RegularTerminalToolbar" />
+                <VisualState x:Name="CompactTerminalToolbar">
+                    <VisualState.Setters>
+                        <Setter Target="ReceiveHexCheckBox.MinWidth" Value="80" />
+                        <Setter Target="TimestampCheckBox.MinWidth" Value="80" />
+                        <Setter Target="AutoScrollCheckBox.MinWidth" Value="80" />
+                        <Setter Target="TerminalToolbarGrid.Padding" Value="10" />
+                        <Setter Target="TerminalToolbarGrid.ColumnSpacing" Value="4" />
+                        <Setter Target="TerminalToolbarActions.Spacing" Value="1" />
+                        <Setter Target="TerminalDisplayOptions.Spacing" Value="4" />
+                        <Setter Target="TerminalCommonActions.Spacing" Value="4" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
         <Grid x:Name="ShellContentGrid" ColumnSpacing="14">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="ConnectionPanelColumn" Width="256" />
@@ -253,60 +271,70 @@
                             x:Name="TerminalToolbarActions"
                             Grid.Column="1"
                             Orientation="Horizontal"
-                            Spacing="5">
-                            <CheckBox
-                                x:Name="ReceiveHexCheckBox"
-                                VerticalAlignment="Center"
-                                Click="ReceiveHexCheckBox_Click"
-                                Content="HEX 显示" />
-                            <CheckBox
-                                x:Name="TimestampCheckBox"
-                                VerticalAlignment="Center"
-                                Content="时间戳"
-                                IsChecked="True" />
-                            <CheckBox
-                                x:Name="AutoScrollCheckBox"
-                                VerticalAlignment="Center"
-                                Content="滚动"
-                                IsChecked="True"
-                                ToolTipService.ToolTip="自动滚动到最新数据" />
-                            <Button
-                                x:Name="PresetPanelToggleButton"
-                                Width="34"
-                                Height="32"
-                                Padding="0"
-                                AutomationProperties.Name="快捷指令面板开关"
-                                Click="TogglePresetPanelButton_Click"
-                                ToolTipService.ToolTip="显示快捷指令">
-                                <FontIcon
-                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                    FontSize="14"
-                                    Glyph="&#xE8FD;" />
-                            </Button>
-                            <Button
-                                x:Name="SaveLogButton"
-                                Width="34"
-                                Height="32"
-                                Padding="0"
-                                Click="SaveLogButton_Click"
-                                ToolTipService.ToolTip="保存日志">
-                                <FontIcon
-                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                    FontSize="14"
-                                    Glyph="&#xE74E;" />
-                            </Button>
-                            <Button
-                                x:Name="ClearTerminalButton"
-                                Width="34"
-                                Height="32"
-                                Padding="0"
-                                Click="ClearTerminalButton_Click"
-                                ToolTipService.ToolTip="清空终端">
-                                <FontIcon
-                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                    FontSize="14"
-                                    Glyph="&#xE74D;" />
-                            </Button>
+                            Spacing="2">
+                            <StackPanel
+                                x:Name="TerminalDisplayOptions"
+                                Orientation="Horizontal"
+                                Spacing="5">
+                                <CheckBox
+                                    x:Name="ReceiveHexCheckBox"
+                                    VerticalAlignment="Center"
+                                    Click="ReceiveHexCheckBox_Click"
+                                    Content="HEX 显示" />
+                                <CheckBox
+                                    x:Name="TimestampCheckBox"
+                                    VerticalAlignment="Center"
+                                    Content="时间戳"
+                                    IsChecked="True" />
+                                <CheckBox
+                                    x:Name="AutoScrollCheckBox"
+                                    VerticalAlignment="Center"
+                                    Content="滚动"
+                                    IsChecked="True"
+                                    ToolTipService.ToolTip="自动滚动到最新数据" />
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="TerminalCommonActions"
+                                Orientation="Horizontal"
+                                Spacing="5">
+                                <Button
+                                    x:Name="PresetPanelToggleButton"
+                                    Width="34"
+                                    Height="32"
+                                    Padding="0"
+                                    AutomationProperties.Name="快捷指令面板开关"
+                                    Click="TogglePresetPanelButton_Click"
+                                    ToolTipService.ToolTip="显示快捷指令">
+                                    <FontIcon
+                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                        FontSize="14"
+                                        Glyph="&#xE8FD;" />
+                                </Button>
+                                <Button
+                                    x:Name="SaveLogButton"
+                                    Width="34"
+                                    Height="32"
+                                    Padding="0"
+                                    Click="SaveLogButton_Click"
+                                    ToolTipService.ToolTip="保存日志">
+                                    <FontIcon
+                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                        FontSize="14"
+                                        Glyph="&#xE74E;" />
+                                </Button>
+                                <Button
+                                    x:Name="ClearTerminalButton"
+                                    Width="34"
+                                    Height="32"
+                                    Padding="0"
+                                    Click="ClearTerminalButton_Click"
+                                    ToolTipService.ToolTip="清空终端">
+                                    <FontIcon
+                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                        FontSize="14"
+                                        Glyph="&#xE74D;" />
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
 
