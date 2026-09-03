@@ -5,15 +5,27 @@ using Comet.Models;
 namespace Comet.Core.Terminal;
 
 /// <summary>
-/// Owns synchronized, complete text and HEX formatted terminal sessions.
+/// Owns synchronized, bounded text and HEX formatted terminal sessions.
 /// </summary>
 internal sealed class TerminalBuffer
 {
+    internal const long DEFAULT_STORAGE_CAPACITY_BYTES = 6L * 1024 * 1024;
+
     private readonly DisplayState _textDisplay = new();
     private readonly DisplayState _hexDisplay = new();
+    private readonly long _storageCapacityBytes;
     private bool _isReceiveDisplayedAsHex;
 
     private DisplayState CurrentDisplay => _isReceiveDisplayedAsHex ? _hexDisplay : _textDisplay;
+
+    private long StoredByteCount =>
+        ((long)_textDisplay.Length + _hexDisplay.Length) * sizeof(char);
+
+    public TerminalBuffer(long storageCapacityBytes = DEFAULT_STORAGE_CAPACITY_BYTES)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(storageCapacityBytes);
+        _storageCapacityBytes = storageCapacityBytes;
+    }
 
     public bool IsEmpty => CurrentDisplay.IsEmpty;
 
@@ -37,6 +49,7 @@ internal sealed class TerminalBuffer
         // original byte batches or a conversion from the currently visible document.
         var textUpdate = _textDisplay.Append(entry, isReceiveDisplayedAsHex: false);
         var hexUpdate = _hexDisplay.Append(entry, isReceiveDisplayedAsHex: true);
+        TrimToLimit();
         return isReceiveDisplayedAsHex ? hexUpdate : textUpdate;
     }
 
@@ -46,6 +59,16 @@ internal sealed class TerminalBuffer
     {
         _textDisplay.Clear();
         _hexDisplay.Clear();
+    }
+
+    private void TrimToLimit()
+    {
+        while (StoredByteCount > _storageCapacityBytes &&
+               _textDisplay.SegmentCount > 1)
+        {
+            _textDisplay.RemoveFirstSegment();
+            _hexDisplay.RemoveFirstSegment();
+        }
     }
 
     private sealed class DisplayState
@@ -62,6 +85,8 @@ internal sealed class TerminalBuffer
         public bool IsEmpty => _sessionText.Length == 0;
 
         public int Length => _sessionText.Length;
+
+        public int SegmentCount => _sessionText.SegmentCount;
 
         public string GetText() => _sessionText.GetText();
 
@@ -112,6 +137,8 @@ internal sealed class TerminalBuffer
 
             return new TerminalBufferUpdate(true, appendedText);
         }
+
+        public void RemoveFirstSegment() => _sessionText.RemoveFirstSegment();
 
         public void Clear()
         {
@@ -255,18 +282,42 @@ internal sealed class TerminalBuffer
 
         public int Length { get; private set; }
 
-        public char LastCharacter => _segments.Last?.Value[^1]
-            ?? throw new InvalidOperationException("The session is empty.");
+        public int SegmentCount => _segments.Count;
+
+        public char LastCharacter
+        {
+            get
+            {
+                for (var node = _segments.Last; node is not null; node = node.Previous)
+                {
+                    if (node.Value.Length > 0)
+                    {
+                        return node.Value[^1];
+                    }
+                }
+
+                throw new InvalidOperationException("The session is empty.");
+            }
+        }
 
         public void Append(string text)
         {
-            if (text.Length == 0)
+            // Keep an entry node even when its formatted text is empty so text and
+            // HEX histories can always evict the same receive boundary.
+            _segments.AddLast(text);
+            Length += text.Length;
+        }
+
+        public void RemoveFirstSegment()
+        {
+            var first = _segments.First;
+            if (first is null)
             {
                 return;
             }
 
-            _segments.AddLast(text);
-            Length += text.Length;
+            Length -= first.Value.Length;
+            _segments.RemoveFirst();
         }
 
         public string GetText()

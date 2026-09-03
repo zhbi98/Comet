@@ -170,11 +170,19 @@ public sealed partial class MainPage
         }
 
         UpdateTransferCounters();
-        if (_pendingTerminalText.Length > 0)
+        TerminalView.AutoScroll = AutoScrollCheckBox.IsChecked == true;
+        var canAppendIncrementally =
+            TerminalView.CharacterCount + _pendingTerminalText.Length ==
+            ViewModel.Terminal.SessionLength;
+        if (!canAppendIncrementally)
+        {
+            _pendingTerminalText.Clear();
+            TerminalView.SetText(ViewModel.Terminal.SessionText, TerminalView.AutoScroll);
+        }
+        else if (_pendingTerminalText.Length > 0)
         {
             var appendedText = _pendingTerminalText.ToString();
             _pendingTerminalText.Clear();
-            TerminalView.AutoScroll = AutoScrollCheckBox.IsChecked == true;
             TerminalView.AppendText(appendedText);
         }
 

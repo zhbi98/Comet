@@ -139,6 +139,38 @@ public sealed class TerminalSessionTests
         }
     }
 
+    [TestMethod]
+    public void HistoryLimit_EvictsTheSameOldestReceiveBoundaryFromBothViews()
+    {
+        const int capacityBytes = 512;
+        var buffer = new TerminalBuffer(capacityBytes);
+        var firstBytes = Enumerable.Repeat((byte)0x41, 40).ToArray();
+        var secondBytes = Enumerable.Repeat((byte)0x42, 40).ToArray();
+
+        buffer.Append(
+            CreateReceiveEntry(new string('A', firstBytes.Length), firstBytes),
+            shouldIncludeInDisplay: true,
+            isReceiveDisplayedAsHex: false);
+        buffer.Append(
+            CreateReceiveEntry(new string('B', secondBytes.Length), secondBytes),
+            shouldIncludeInDisplay: true,
+            isReceiveDisplayedAsHex: false);
+
+        var textSession = buffer.GetSessionText();
+        Assert.IsFalse(textSession.Contains('A'));
+        StringAssert.EndsWith(textSession, new string('B', secondBytes.Length));
+
+        buffer.SetReceiveAsHex(true);
+        var hexSession = buffer.GetSessionText();
+        Assert.IsFalse(hexSession.Contains("41"));
+        StringAssert.Contains(hexSession, "42 42 42");
+        var hexLength = buffer.SessionLength;
+        buffer.SetReceiveAsHex(false);
+        Assert.IsLessThanOrEqualTo(
+            capacityBytes,
+            (buffer.SessionLength + hexLength) * sizeof(char));
+    }
+
     private static TerminalEntryModel CreateReceiveEntry(
         string text,
         byte[] bytes,
