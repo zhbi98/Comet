@@ -516,7 +516,6 @@
                         <Grid RowSpacing="10">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
@@ -557,76 +556,7 @@
                                     Content="编辑排序" />
                             </Grid>
 
-                            <Border
-                                x:Name="PresetEditorPanel"
-                                Grid.Row="1"
-                                Padding="8"
-                                Background="{StaticResource CometSurfaceBrush}"
-                                BorderBrush="{StaticResource CometTerminalBorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="7">
-                                <Grid RowSpacing="6">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="96" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox
-                                            x:Name="NewPresetNameTextBox"
-                                            MinHeight="30"
-                                            PlaceholderText="名称（可选）" />
-                                        <TextBox
-                                            x:Name="NewPresetCommandTextBox"
-                                            Grid.Column="1"
-                                            MinHeight="30"
-                                            FontFamily="Cascadia Mono"
-                                            PlaceholderText="输入指令内容" />
-                                    </Grid>
-                                    <Grid Grid.Row="1" ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="88" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <CheckBox
-                                            x:Name="NewPresetHexCheckBox"
-                                            VerticalAlignment="Center"
-                                            Content="HEX 发送" />
-                                        <ComboBox
-                                            x:Name="NewPresetLineEndingComboBox"
-                                            Grid.Column="1"
-                                            MinHeight="30"
-                                            HorizontalAlignment="Stretch"
-                                            SelectedIndex="0">
-                                            <ComboBoxItem Content="无" />
-                                            <ComboBoxItem Content="CRLF" />
-                                            <ComboBoxItem Content="CR" />
-                                            <ComboBoxItem Content="LF" />
-                                        </ComboBox>
-                                        <Button
-                                            Grid.Column="2"
-                                            Height="30"
-                                            HorizontalAlignment="Stretch"
-                                            Click="AddPresetButton_Click"
-                                            IsEnabled="{x:Bind ViewModel.CommandPresets.CanAdd, Mode=OneWay}"
-                                            Style="{StaticResource AccentButtonStyle}">
-                                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                                <FontIcon
-                                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                                    FontSize="13"
-                                                    Glyph="&#xE710;" />
-                                                <TextBlock Text="添加" />
-                                            </StackPanel>
-                                        </Button>
-                                    </Grid>
-                                </Grid>
-                            </Border>
-
-                            <Grid Grid.Row="2" Margin="0,0,-8,0">
+                            <Grid Grid.Row="1" Margin="0,0,-8,0">
                                 <ListView
                                     x:Name="PresetList"
                                     Padding="0,0,12,0"
@@ -645,6 +575,77 @@
                                             <Setter Property="Width" Value="8" />
                                         </Style>
                                     </ListView.Resources>
+
+                                    <ListView.Footer>
+                                        <Border
+                                            Margin="0,6,0,4"
+                                            Padding="8"
+                                            HorizontalAlignment="Stretch"
+                                            Background="{StaticResource CometSurfaceBrush}"
+                                            BorderBrush="{StaticResource CometTerminalBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="7">
+                                            <Grid RowSpacing="6">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="96" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox
+                                                        x:Name="NewPresetNameTextBox"
+                                                        MinHeight="30"
+                                                        PlaceholderText="名称（可选）" />
+                                                    <TextBox
+                                                        x:Name="NewPresetCommandTextBox"
+                                                        Grid.Column="1"
+                                                        MinHeight="30"
+                                                        FontFamily="Cascadia Mono"
+                                                        PlaceholderText="输入指令内容" />
+                                                </Grid>
+                                                <Grid Grid.Row="1" ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="88" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <CheckBox
+                                                        x:Name="NewPresetHexCheckBox"
+                                                        VerticalAlignment="Center"
+                                                        Content="HEX 发送" />
+                                                    <ComboBox
+                                                        x:Name="NewPresetLineEndingComboBox"
+                                                        Grid.Column="1"
+                                                        MinHeight="30"
+                                                        HorizontalAlignment="Stretch"
+                                                        SelectedIndex="0">
+                                                        <ComboBoxItem Content="无" />
+                                                        <ComboBoxItem Content="CRLF" />
+                                                        <ComboBoxItem Content="CR" />
+                                                        <ComboBoxItem Content="LF" />
+                                                    </ComboBox>
+                                                    <Button
+                                                        Grid.Column="2"
+                                                        Height="30"
+                                                        HorizontalAlignment="Stretch"
+                                                        Click="AddPresetButton_Click"
+                                                        IsEnabled="{x:Bind ViewModel.CommandPresets.CanAdd, Mode=OneWay}"
+                                                        Style="{StaticResource AccentButtonStyle}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                                            <FontIcon
+                                                                FontFamily="{StaticResource SymbolThemeFontFamily}"
+                                                                FontSize="13"
+                                                                Glyph="&#xE710;" />
+                                                            <TextBlock Text="添加" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+                                    </ListView.Footer>
 
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
@@ -767,16 +768,6 @@
                                     </ListView.ItemTemplate>
                                 </ListView>
 
-                                <TextBlock
-                                    x:Name="EmptyPresetText"
-                                    Margin="0,0,8,0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Foreground="{StaticResource CometMutedBrush}"
-                                    Text="暂无快捷指令，请在上方输入并添加"
-                                    TextAlignment="Center"
-                                    TextWrapping="Wrap"
-                                    Visibility="Collapsed" />
                             </Grid>
                         </Grid>
                     </Border>

@@ -237,11 +237,6 @@ public sealed partial class MainPage
                 command,
                 NewPresetHexCheckBox.IsChecked == true,
                 lineEnding));
-        if (ViewModel.CommandPresets.Items.Count > 0)
-        {
-            PresetList.ScrollIntoView(ViewModel.CommandPresets.Items[^1]);
-        }
-
         NewPresetNameTextBox.Text = string.Empty;
         NewPresetCommandTextBox.Text = string.Empty;
         NewPresetCommandTextBox.Focus(FocusState.Programmatic);
@@ -313,14 +308,11 @@ public sealed partial class MainPage
     private void UpdatePresetPanelState()
     {
         PresetCountText.Text = ViewModel.CommandPresets.CountText;
-        EmptyPresetText.Visibility = ViewModel.CommandPresets.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
         var isPresetCycleActive = PresetCycleToggleButton.IsChecked == true;
         var presetCount = ViewModel.CommandPresets.Items.Count;
         PresetCycleToggleButton.IsEnabled =
             isPresetCycleActive || (!_isPresetReorderMode && presetCount > 0);
         PresetCycleToggleButton.Content = isPresetCycleActive ? "停止发送" : "循环发送";
-        PresetEditorPanel.IsHitTestVisible = !isPresetCycleActive;
-        PresetEditorPanel.Opacity = isPresetCycleActive ? 0.55 : 1;
         PresetList.IsEnabled = !isPresetCycleActive;
         PresetReorderModeButton.IsEnabled =
             !isPresetCycleActive && (_isPresetReorderMode || presetCount > 1);
