@@ -51,8 +51,8 @@ dotnet build .\src\Comet\Comet.csproj -c Release -p:Platform=ARM64
 | --- | --- |
 | `Services/SerialPortService.cs` | 枚举、连接、发送、接收、断开竞态 |
 | `src/Comet.Core/Terminal/TerminalBuffer.cs` | 双模式完整分段会话、文本/HEX 切换、格式边界和大数据测试 |
-| `src/Comet.Core/Terminal/VirtualTerminalDocument.cs` | 增量折行、CR/LF、Tab、宽字符、行通知和多 MB 索引 |
-| `Controls/VirtualTerminalControl.*` | 可见行虚拟化、滚动锚点、选择、复制、键入和窗口重排 |
+| `src/Comet.Core/Terminal/VirtualTerminalDocument.cs` | 增量折行、CR/LF、Tab、宽字符、增量索引和多 MB 文档 |
+| `Controls/VirtualTerminalControl.*` | 固定行池窗口化、超大逻辑滚动范围、滚动锚点、选择、复制、键入和窗口重排 |
 | `TerminalAppearanceViewModel`、`MainWindow.*` | 标题栏主菜单、字体与关于对话框、运行时信息、备份文件选择器、软换行重排和恢复默认 |
 | `UserSettingsViewModel`、`AppSettingsStorageService`、`MainPage.UserSettings` | 默认值、选项变更、完整设置快照、原子保存、损坏文件回退和重启恢复 |
 | `src/Comet.Core/Text/StreamingTextDecoder.cs` | UTF-8/GBK 跨批次字符、随机二进制、编码切换前重连 |
@@ -321,9 +321,10 @@ TX 计数按最终成功写入串口的字节数增加。时间戳开启时，�
 - 文本与 HEX 切换后格式正确，不出现半个 HEX 字节。
 - 随机二进制不会截断其后的数据或导致应用退出。
 - 所有输入框、按钮、复选框和滚动条仍可交互。
+- 鼠标滚轮、滚动条拖动和触摸内容区惯性滚动都能覆盖完整逻辑范围。
 - 多行选择和复制期间没有越界、未授权访问或应用崩溃。
 
-应结合状态栏会话长度、最早/最新行定位、保存日志、原始 `.bin`、RX 字节计数和发送端统计验证数据完整性。`ItemsRepeater` 只创建少量行元素是正常的，不能用 UI 自动化树中的元素数量推断完整会话行数；日志是格式化会话，原始录制文件才用于逐字节验证 RX。
+应结合状态栏会话长度、最早/最新行定位、保存日志、原始 `.bin`、RX 字节计数和发送端统计验证数据完整性。终端只创建固定数量的可见行元素是正常的，不能用 UI 自动化树中的元素数量推断完整会话行数；日志是格式化会话，原始录制文件才用于逐字节验证 RX。
 
 ## 断开与关闭竞态测试
 

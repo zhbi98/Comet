@@ -134,8 +134,8 @@ public sealed partial class MainPage
             return;
         }
 
-        // Coalesce small transport callbacks before notifying ItemsRepeater. This keeps
-        // byte accounting immediate without forcing one layout pass per receive event.
+        // Coalesce small transport callbacks before updating the terminal document. This
+        // keeps byte accounting immediate without refreshing the viewport per receive event.
         _pendingTerminalText.Append(update.AppendedText);
         ScheduleTerminalRender();
         EmptyTerminalPanel.Visibility = Visibility.Collapsed;

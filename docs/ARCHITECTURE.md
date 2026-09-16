@@ -123,6 +123,8 @@ Core 类型不显示消息、不操作控件，也不决定窗口何时滚动。
 
 字体设置只修改 `TerminalAppearanceViewModel`。`MainPage` 监听状态变化并把字体名称转换为 WinUI `FontFamily`；`VirtualTerminalControl` 原子应用字体和字号，重新测量字符单元，并按文档偏移保留滚动与选择状态。
 
+终端显示采用逻辑窗口化：`VirtualTerminalDocument` 保存完整折行索引，`VirtualTerminalControl` 只维护逻辑滚动偏移和固定数量的可见行呈现器。完整行数不会转换为同等高度的 XAML 布局树；选择、复制和输入仍使用全局文档偏移。
+
 **窗口图标。** 应用图标只有一个源文件 `Assets/CometTerminalIcon.ico`。构建时它同时写入 EXE 并嵌入程序集；运行时 `WindowIconManager` 从同一资源创建标题栏图像，并按窗口 DPI 从当前 EXE 选择合适的 Win32 图标帧。图标加载不依赖工作目录或发布目录中的外部图片。
 
 ### 快捷指令的跨层协作

@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
 
@@ -27,14 +26,12 @@ internal sealed class VirtualTerminalDocument
     private const int TAB_SIZE = 4;
 
     private readonly StringBuilder _text = new();
-    private ObservableCollection<TerminalDisplayLine> _lines = [];
+    private List<TerminalDisplayLine> _lines = [];
     private int _columns = 80;
 
     public int CharacterCount => _text.Length;
 
     public int LineCount => _lines.Count;
-
-    public IList<TerminalDisplayLine> Lines => _lines;
 
     public void Clear()
     {
@@ -72,8 +69,8 @@ internal sealed class VirtualTerminalDocument
             return;
         }
 
-        // Replace and Add notifications let ItemsRepeater preserve its realized window;
-        // a Reset here would recycle every visible element for each receive batch.
+        // Only the previous tail row and the newly produced suffix need to change.
+        // The control reads the current rows when it refreshes its fixed presenter pool.
         _lines[rebuildIndex] = replacement[0];
         for (var index = 1; index < replacement.Count; index++)
         {
@@ -210,8 +207,8 @@ internal sealed class VirtualTerminalDocument
     private void RebuildAllLines()
     {
         // A complete replacement is reserved for mode or width changes, where every
-        // row may legitimately differ and incremental notifications provide no benefit.
-        _lines = new ObservableCollection<TerminalDisplayLine>(CreateLines(0));
+        // row may legitimately differ.
+        _lines = CreateLines(0);
     }
 
     private List<TerminalDisplayLine> CreateLines(int start)

@@ -3,6 +3,7 @@ using Comet.Models;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
@@ -18,9 +19,11 @@ namespace Comet.Controls;
 public sealed partial class VirtualTerminalControl : UserControl
 {
     private const double HORIZONTAL_PADDING = 16;
-    private const int VIEWPORT_PREFETCH_LINES = 3;
+    private const int SCROLL_LINES_PER_STEP = 3;
 
     private readonly VirtualTerminalDocument _document = new();
+    private readonly List<TerminalLinePresenter> _presenters = [];
+    private readonly RectangleGeometry _viewportClip = new();
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _caretTimer;
     private bool _isPointerSelecting;
     // Both ends use UTF-16 document offsets so recycled row elements never own selection state.
@@ -34,6 +37,10 @@ public sealed partial class VirtualTerminalControl : UserControl
     private bool _isClearingInputProxy;
     private bool _scrollToEndAfterLayout;
     private ScrollAnchor? _scrollAnchorAfterLayout;
+    private double _verticalOffset;
+    private double _maximumVerticalOffset;
+    private bool _isUpdatingScrollBar;
+    private bool _isViewportUpdateQueued;
     private bool _hasInputFocus;
     private bool _isCaretVisible;
 
@@ -41,22 +48,22 @@ public sealed partial class VirtualTerminalControl : UserControl
     {
         InitializeComponent();
         _document.Clear();
-        LineRepeater.ItemsSource = _document.Lines;
+        LineViewport.Clip = _viewportClip;
         var textCursor = InputCursor.CreateFromCoreCursor(new CoreCursor(CoreCursorType.IBeam, 0));
         ProtectedCursor = textCursor;
 
-        // ScrollViewer and TextBox handle pointer and keyboard events internally. Registering
-        // with handledEventsToo keeps terminal interaction available after those class handlers run.
-        AddHandler(PointerPressedEvent, new PointerEventHandler(OnPointerPressed), handledEventsToo: true);
-        AddHandler(PointerMovedEvent, new PointerEventHandler(OnPointerMoved), handledEventsToo: true);
-        AddHandler(PointerReleasedEvent, new PointerEventHandler(OnPointerReleased), handledEventsToo: true);
-        AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnPointerCaptureLost), handledEventsToo: true);
+        // Register on the clipped text viewport so the native scroll bar keeps its own
+        // pointer handling while terminal selection receives already-handled events.
+        LineViewport.AddHandler(PointerPressedEvent, new PointerEventHandler(OnPointerPressed), handledEventsToo: true);
+        LineViewport.AddHandler(PointerMovedEvent, new PointerEventHandler(OnPointerMoved), handledEventsToo: true);
+        LineViewport.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnPointerReleased), handledEventsToo: true);
+        LineViewport.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnPointerCaptureLost), handledEventsToo: true);
+        LineViewport.AddHandler(PointerWheelChangedEvent, new PointerEventHandler(OnPointerWheelChanged), handledEventsToo: true);
         InputProxy.AddHandler(KeyDownEvent, new KeyEventHandler(OnInputProxyKeyDown), handledEventsToo: true);
         InputProxy.Paste += InputProxy_Paste;
         InputProxy.GotFocus += InputProxy_GotFocus;
         InputProxy.LostFocus += InputProxy_LostFocus;
         GotFocus += VirtualTerminalControl_GotFocus;
-        LineRepeater.LayoutUpdated += LineRepeater_LayoutUpdated;
 
         // The real TextBox caret is intentionally invisible. Blink only the lightweight
         // rectangle drawn by the currently realized line presenter.
@@ -131,24 +138,21 @@ public sealed partial class VirtualTerminalControl : UserControl
     public void Clear()
     {
         _document.Clear();
-        LineRepeater.ItemsSource = _document.Lines;
         _selectionAnchor = 0;
         _selectionActive = 0;
-        _scrollToEndAfterLayout = false;
-        _scrollAnchorAfterLayout = null;
-        ScrollHost.ChangeView(0, 0, null, disableAnimation: true);
-        RaiseViewportChanged();
+        CancelPendingViewportChange();
+        UpdateScrollRange();
+        SetVerticalOffset(0);
     }
 
     public void SetText(string text, bool shouldScrollToEnd)
     {
         // Text and HEX documents have different lengths, so a mode switch preserves a
         // relative scroll position when following the tail is not requested.
-        var scrollRatio = ScrollHost.ScrollableHeight <= 0
+        var scrollRatio = _maximumVerticalOffset <= 0
             ? 0
-            : ScrollHost.VerticalOffset / ScrollHost.ScrollableHeight;
+            : _verticalOffset / _maximumVerticalOffset;
         _document.SetText(text);
-        LineRepeater.ItemsSource = _document.Lines;
         _selectionAnchor = Math.Min(_selectionAnchor, _document.CharacterCount);
         _selectionActive = Math.Min(_selectionActive, _document.CharacterCount);
 
@@ -189,11 +193,12 @@ public sealed partial class VirtualTerminalControl : UserControl
         }
     }
 
-    public void ScrollToEnd() => ScrollHost.ChangeView(
-        null,
-        ScrollHost.ScrollableHeight,
-        null,
-        disableAnimation: true);
+    public void ScrollToEnd()
+    {
+        CancelPendingViewportChange();
+        UpdateScrollRange();
+        SetVerticalOffset(_maximumVerticalOffset);
+    }
 
     public (int FirstLine, int LastLine) GetVisibleLineRange()
     {
@@ -202,9 +207,14 @@ public sealed partial class VirtualTerminalControl : UserControl
             return (0, 0);
         }
 
-        var first = Math.Clamp((int)Math.Floor(ScrollHost.VerticalOffset / _lineHeight), 0, _document.LineCount - 1);
-        var visibleCount = Math.Max(1, (int)Math.Ceiling(ScrollHost.ViewportHeight / _lineHeight));
-        var last = Math.Clamp(first + visibleCount - 1, first, _document.LineCount - 1);
+        var first = Math.Clamp((int)Math.Floor(_verticalOffset / _lineHeight), 0, _document.LineCount - 1);
+        var viewportHeight = Math.Max(0, LineViewport.ActualHeight);
+        var last = viewportHeight <= 0
+            ? first
+            : Math.Clamp(
+                (int)Math.Ceiling((_verticalOffset + viewportHeight) / _lineHeight) - 1,
+                first,
+                _document.LineCount - 1);
         return (first, last);
     }
 
@@ -251,6 +261,7 @@ public sealed partial class VirtualTerminalControl : UserControl
 
     private void VirtualTerminalControl_Loaded(object sender, RoutedEventArgs e)
     {
+        UpdateViewportClip();
         MeasureTextMetrics();
         ReflowForCurrentWidth();
     }
@@ -259,6 +270,7 @@ public sealed partial class VirtualTerminalControl : UserControl
     {
         if (IsLoaded)
         {
+            UpdateViewportClip();
             MeasureTextMetrics();
             ReflowForCurrentWidth();
         }
@@ -286,19 +298,26 @@ public sealed partial class VirtualTerminalControl : UserControl
 
     private void ReflowForCurrentWidth()
     {
-        var availableWidth = ScrollHost.ViewportWidth > 0 ? ScrollHost.ViewportWidth : ActualWidth;
+        var availableWidth = LineViewport.ActualWidth > 0 ? LineViewport.ActualWidth : ActualWidth;
         var columns = Math.Max(1, (int)Math.Floor((availableWidth - (HORIZONTAL_PADDING * 2)) / _characterWidth));
         // Width changes invalidate row numbers. A document offset remains stable across reflow.
         var anchor = CaptureScrollAnchor();
         if (!_document.SetColumns(columns))
         {
+            UpdateScrollRange();
             UpdateVisiblePresenters();
+            RaiseViewportChanged();
             return;
         }
 
-        LineRepeater.ItemsSource = _document.Lines;
         RequestScrollAnchorAfterLayout(anchor);
     }
+
+    private void UpdateViewportClip() => _viewportClip.Rect = new Windows.Foundation.Rect(
+        0,
+        0,
+        Math.Max(0, LineViewport.ActualWidth),
+        Math.Max(0, LineViewport.ActualHeight));
 
     private void RequestScrollToEndAfterLayout()
     {
@@ -320,44 +339,46 @@ public sealed partial class VirtualTerminalControl : UserControl
 
     private void QueuePostLayoutViewportUpdate()
     {
-        // ItemsRepeater updates ScrollableHeight during layout. Applying the request sooner
-        // would clamp it to the previous extent and leave automatic scrolling at the top.
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        if (_isViewportUpdateQueued)
         {
-            LineRepeater.UpdateLayout();
-            ApplyPendingViewportChange();
-        });
-    }
+            return;
+        }
 
-    private void LineRepeater_LayoutUpdated(object? sender, object e) => ApplyPendingViewportChange();
+        _isViewportUpdateQueued = true;
+        if (!DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            _isViewportUpdateQueued = false;
+            UpdateScrollRange();
+            ApplyPendingViewportChange();
+        }))
+        {
+            _isViewportUpdateQueued = false;
+        }
+    }
 
     private void ApplyPendingViewportChange()
     {
         if (_scrollToEndAfterLayout)
         {
             _scrollToEndAfterLayout = false;
-            ScrollToEnd();
+            SetVerticalOffset(_maximumVerticalOffset);
+            return;
         }
-        else if (_scrollAnchorAfterLayout is ScrollAnchor anchor)
+
+        if (_scrollAnchorAfterLayout is ScrollAnchor anchor)
         {
             _scrollAnchorAfterLayout = null;
             if (anchor.DocumentOffset < 0)
             {
                 // Negative offsets encode a proportional position used when switching
                 // between text and HEX documents that do not share character offsets.
-                ScrollHost.ChangeView(
-                    null,
-                    ScrollHost.ScrollableHeight * anchor.WithinLineOffset,
-                    null,
-                    disableAnimation: true);
+                SetVerticalOffset(_maximumVerticalOffset * anchor.WithinLineOffset);
             }
             else
             {
                 RestoreScrollAnchor(anchor);
             }
-        }
-        else
-        {
+
             return;
         }
 
@@ -374,46 +395,99 @@ public sealed partial class VirtualTerminalControl : UserControl
 
         // Store the first visible character plus its fractional row offset. This survives
         // appends and complete row-index rebuilds without depending on a stale row number.
-        var lineIndex = Math.Clamp((int)Math.Floor(ScrollHost.VerticalOffset / _lineHeight), 0, _document.LineCount - 1);
+        var lineIndex = Math.Clamp((int)Math.Floor(_verticalOffset / _lineHeight), 0, _document.LineCount - 1);
         var line = _document.GetLine(lineIndex);
-        var withinLine = ScrollHost.VerticalOffset - (lineIndex * _lineHeight);
+        var withinLine = _verticalOffset - (lineIndex * _lineHeight);
         return new ScrollAnchor(line.Start, Math.Max(0, withinLine));
     }
 
     private void RestoreScrollAnchor(ScrollAnchor anchor)
     {
         var lineIndex = _document.FindLineIndex(anchor.DocumentOffset);
-        ScrollHost.ChangeView(
-            null,
-            (lineIndex * _lineHeight) + anchor.WithinLineOffset,
-            null,
-            disableAnimation: true);
+        SetVerticalOffset((lineIndex * _lineHeight) + anchor.WithinLineOffset);
     }
 
-    private void LineRepeater_ElementPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
+    private void UpdateScrollRange()
     {
-        if (args.Element is TerminalLinePresenter presenter && args.Index < _document.LineCount)
+        var viewportHeight = Math.Max(0, LineViewport.ActualHeight);
+        var extentHeight = _document.LineCount * _lineHeight;
+        _maximumVerticalOffset = Math.Max(0, extentHeight - viewportHeight);
+        _verticalOffset = Math.Clamp(_verticalOffset, 0, _maximumVerticalOffset);
+
+        _isUpdatingScrollBar = true;
+        try
         {
-            UpdatePresenter(presenter, args.Index);
+            VerticalScrollBar.Minimum = 0;
+            VerticalScrollBar.Maximum = _maximumVerticalOffset;
+            VerticalScrollBar.ViewportSize = viewportHeight;
+            VerticalScrollBar.SmallChange = _lineHeight * SCROLL_LINES_PER_STEP;
+            VerticalScrollBar.LargeChange = Math.Max(_lineHeight, viewportHeight);
+            VerticalScrollBar.Value = _verticalOffset;
+            VerticalScrollBar.IsEnabled = _maximumVerticalOffset > 0;
         }
+        finally
+        {
+            _isUpdatingScrollBar = false;
+        }
+    }
+
+    private void SetVerticalOffset(double offset)
+    {
+        _verticalOffset = Math.Clamp(double.IsFinite(offset) ? offset : 0, 0, _maximumVerticalOffset);
+        _isUpdatingScrollBar = true;
+        try
+        {
+            VerticalScrollBar.Value = _verticalOffset;
+        }
+        finally
+        {
+            _isUpdatingScrollBar = false;
+        }
+
+        UpdateVisiblePresenters();
+        RaiseViewportChanged();
+    }
+
+    private void SetVerticalOffsetFromUser(double offset)
+    {
+        CancelPendingViewportChange();
+        SetVerticalOffset(offset);
+    }
+
+    private void CancelPendingViewportChange()
+    {
+        _scrollToEndAfterLayout = false;
+        _scrollAnchorAfterLayout = null;
     }
 
     private void UpdateVisiblePresenters()
     {
-        if (_document.LineCount == 0)
+        var viewportHeight = Math.Max(0, LineViewport.ActualHeight);
+        var requiredCount = Math.Max(1, (int)Math.Ceiling(viewportHeight / _lineHeight) + 2);
+        while (_presenters.Count < requiredCount)
         {
-            return;
+            var presenter = new TerminalLinePresenter();
+            _presenters.Add(presenter);
+            LineSurface.Children.Add(presenter);
         }
 
-        var (first, last) = GetVisibleLineRange();
-        first = Math.Max(0, first - VIEWPORT_PREFETCH_LINES);
-        last = Math.Min(_document.LineCount - 1, last + VIEWPORT_PREFETCH_LINES);
-        for (var index = first; index <= last; index++)
+        var firstLine = Math.Clamp((int)Math.Floor(_verticalOffset / _lineHeight), 0, _document.LineCount - 1);
+        var withinLineOffset = _verticalOffset - (firstLine * _lineHeight);
+        for (var slot = 0; slot < _presenters.Count; slot++)
         {
-            if (LineRepeater.TryGetElement(index) is TerminalLinePresenter presenter)
+            var presenter = _presenters[slot];
+            var lineIndex = firstLine + slot;
+            if (slot >= requiredCount || lineIndex >= _document.LineCount)
             {
-                UpdatePresenter(presenter, index);
+                presenter.Visibility = Visibility.Collapsed;
+                continue;
             }
+
+            presenter.Width = Math.Max(0, LineViewport.ActualWidth);
+            Canvas.SetLeft(presenter, 0);
+            Canvas.SetTop(presenter, (slot * _lineHeight) - withinLineOffset);
+            UpdatePresenter(presenter, lineIndex);
+            presenter.Visibility = Visibility.Visible;
         }
     }
 
@@ -453,9 +527,12 @@ public sealed partial class VirtualTerminalControl : UserControl
 
     private void OnPointerPressed(object sender, PointerRoutedEventArgs args)
     {
-        // Coordinates relative to ItemsRepeater include the scrolled content offset,
-        // allowing a direct conversion from Y position to the logical row index.
-        var point = args.GetCurrentPoint(LineRepeater);
+        if (args.Pointer.PointerDeviceType == PointerDeviceType.Touch)
+        {
+            return;
+        }
+
+        var point = args.GetCurrentPoint(LineViewport);
         if (!point.Properties.IsLeftButtonPressed)
         {
             return;
@@ -463,7 +540,7 @@ public sealed partial class VirtualTerminalControl : UserControl
 
         InputProxy.Focus(FocusState.Pointer);
         var offset = GetDocumentOffsetFromPoint(point.Position);
-        _scrollToEndAfterLayout = false;
+        CancelPendingViewportChange();
         if (!IsShiftDown())
         {
             _selectionAnchor = offset;
@@ -471,7 +548,7 @@ public sealed partial class VirtualTerminalControl : UserControl
 
         _selectionActive = offset;
         ResetCaretBlink();
-        _isPointerSelecting = CapturePointer(args.Pointer);
+        _isPointerSelecting = LineViewport.CapturePointer(args.Pointer);
         UpdateVisiblePresenters();
         args.Handled = true;
     }
@@ -483,17 +560,17 @@ public sealed partial class VirtualTerminalControl : UserControl
             return;
         }
 
-        var rootPoint = args.GetCurrentPoint(RootGrid).Position;
-        if (rootPoint.Y < 0)
+        var viewportPoint = args.GetCurrentPoint(LineViewport).Position;
+        if (viewportPoint.Y < 0)
         {
-            ScrollHost.ChangeView(null, Math.Max(0, ScrollHost.VerticalOffset - (_lineHeight * 3)), null, true);
+            SetVerticalOffsetFromUser(_verticalOffset - (_lineHeight * SCROLL_LINES_PER_STEP));
         }
-        else if (rootPoint.Y > ActualHeight)
+        else if (viewportPoint.Y > LineViewport.ActualHeight)
         {
-            ScrollHost.ChangeView(null, ScrollHost.VerticalOffset + (_lineHeight * 3), null, true);
+            SetVerticalOffsetFromUser(_verticalOffset + (_lineHeight * SCROLL_LINES_PER_STEP));
         }
 
-        _selectionActive = GetDocumentOffsetFromPoint(args.GetCurrentPoint(LineRepeater).Position);
+        _selectionActive = GetDocumentOffsetFromPoint(viewportPoint);
         UpdateVisiblePresenters();
         RaiseViewportChanged();
         args.Handled = true;
@@ -506,16 +583,48 @@ public sealed partial class VirtualTerminalControl : UserControl
             return;
         }
 
-        _selectionActive = GetDocumentOffsetFromPoint(args.GetCurrentPoint(LineRepeater).Position);
+        _selectionActive = GetDocumentOffsetFromPoint(args.GetCurrentPoint(LineViewport).Position);
         ResetCaretBlink();
         _isPointerSelecting = false;
-        ReleasePointerCapture(args.Pointer);
+        LineViewport.ReleasePointerCapture(args.Pointer);
         UpdateVisiblePresenters();
         RaiseViewportChanged();
         args.Handled = true;
     }
 
     private void OnPointerCaptureLost(object sender, PointerRoutedEventArgs args) => _isPointerSelecting = false;
+
+    private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs args)
+    {
+        var delta = args.GetCurrentPoint(LineViewport).Properties.MouseWheelDelta;
+        if (delta == 0)
+        {
+            return;
+        }
+
+        SetVerticalOffsetFromUser(
+            _verticalOffset - ((delta / 120.0) * _lineHeight * SCROLL_LINES_PER_STEP));
+        args.Handled = true;
+    }
+
+    private void LineViewport_ManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs args)
+    {
+        if (args.PointerDeviceType != PointerDeviceType.Touch)
+        {
+            return;
+        }
+
+        SetVerticalOffsetFromUser(_verticalOffset - args.Delta.Translation.Y);
+        args.Handled = true;
+    }
+
+    private void VerticalScrollBar_ValueChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (!_isUpdatingScrollBar)
+        {
+            SetVerticalOffsetFromUser(args.NewValue);
+        }
+    }
 
     private void VirtualTerminalControl_GotFocus(object sender, RoutedEventArgs args)
     {
@@ -553,7 +662,8 @@ public sealed partial class VirtualTerminalControl : UserControl
 
     private int GetDocumentOffsetFromPoint(Windows.Foundation.Point position)
     {
-        var lineIndex = Math.Clamp((int)Math.Floor(position.Y / _lineHeight), 0, _document.LineCount - 1);
+        var absoluteY = _verticalOffset + position.Y;
+        var lineIndex = Math.Clamp((int)Math.Floor(absoluteY / _lineHeight), 0, _document.LineCount - 1);
         var cellPosition = Math.Max(0, (position.X - HORIZONTAL_PADDING) / _characterWidth);
         return _document.GetDocumentOffset(lineIndex, cellPosition);
     }
@@ -664,13 +774,13 @@ public sealed partial class VirtualTerminalControl : UserControl
         var lineIndex = _document.FindLineIndex(position);
         var top = lineIndex * _lineHeight;
         var bottom = top + _lineHeight;
-        if (top < ScrollHost.VerticalOffset)
+        if (top < _verticalOffset)
         {
-            ScrollHost.ChangeView(null, top, null, true);
+            SetVerticalOffset(top);
         }
-        else if (bottom > ScrollHost.VerticalOffset + ScrollHost.ViewportHeight)
+        else if (bottom > _verticalOffset + LineViewport.ActualHeight)
         {
-            ScrollHost.ChangeView(null, bottom - ScrollHost.ViewportHeight, null, true);
+            SetVerticalOffset(bottom - LineViewport.ActualHeight);
         }
     }
 
@@ -692,12 +802,6 @@ public sealed partial class VirtualTerminalControl : UserControl
             ResetCaretBlink();
             InputReceived?.Invoke(this, new TerminalInputEventArgs(insertedText));
         }
-    }
-
-    private void ScrollHost_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
-    {
-        UpdateVisiblePresenters();
-        RaiseViewportChanged();
     }
 
     private void RaiseViewportChanged() => ViewportChanged?.Invoke(this, EventArgs.Empty);
