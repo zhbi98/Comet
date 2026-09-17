@@ -13,6 +13,7 @@ namespace Comet.Views;
 public sealed partial class MainPage : Page
 {
     private const double CompactToolbarWidth = 700;
+    private const double CompactSendOptionsWidth = 680;
     private const double ExpandedShellColumnSpacing = 14;
 
     private static readonly GridLength ExpandedConnectionPanelWidth = new(256);
@@ -29,6 +30,7 @@ public sealed partial class MainPage : Page
     private bool _isUnloaded;
     private int _shutdownState;
     private bool _isCompactTerminalToolbar;
+    private bool _isCompactSendOptions;
     private bool _isConnectionPanelCollapsed;
 
     public MainViewModel ViewModel { get; }
@@ -97,6 +99,21 @@ public sealed partial class MainPage : Page
         VisualStateManager.GoToState(
             this,
             isCompact ? "CompactTerminalToolbar" : "RegularTerminalToolbar",
+            useTransitions: false);
+    }
+
+    private void SendOptionsGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var isCompact = e.NewSize.Width is > 0 and < CompactSendOptionsWidth;
+        if (_isCompactSendOptions == isCompact)
+        {
+            return;
+        }
+
+        _isCompactSendOptions = isCompact;
+        VisualStateManager.GoToState(
+            this,
+            isCompact ? "CompactSendOptions" : "RegularSendOptions",
             useTransitions: false);
     }
 

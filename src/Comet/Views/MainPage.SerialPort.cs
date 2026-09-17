@@ -300,6 +300,7 @@ public sealed partial class MainPage
 
     private void RepeatSendToggle_Toggled(object sender, RoutedEventArgs e)
     {
+        RepeatSendStateText.Text = RepeatSendToggle.IsOn ? "开" : "关";
         if (!RepeatSendToggle.IsOn)
         {
             StopScheduledSending(ScheduledSendMode.RepeatPayload);

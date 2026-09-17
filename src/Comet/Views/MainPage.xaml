@@ -36,6 +36,20 @@
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
+            <VisualStateGroup x:Name="SendOptionsLayoutStates">
+                <VisualState x:Name="RegularSendOptions" />
+                <VisualState x:Name="CompactSendOptions">
+                    <VisualState.Setters>
+                        <Setter Target="SendHexLabel.Visibility" Value="Collapsed" />
+                        <Setter Target="LineEndingComboBox.Width" Value="96" />
+                        <Setter Target="RepeatSendLabel.Visibility" Value="Collapsed" />
+                        <Setter Target="RepeatIntervalLabel.Text" Value="周期" />
+                        <Setter Target="RepeatIntervalNumberBox.Width" Value="96" />
+                        <Setter Target="ReceiveRecordingButton.Width" Value="56" />
+                        <Setter Target="ReceiveRecordingButton.Content" Value="录制" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
         <Grid x:Name="ShellContentGrid" ColumnSpacing="14">
@@ -371,19 +385,27 @@
 
                     <Grid
                         Grid.Row="2"
-                        Padding="14"
-                        RowSpacing="10">
+                        Padding="14,10"
+                        RowSpacing="6">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="4" />
-                                <RowDefinition Height="32" />
-                            </Grid.RowDefinitions>
+                        <Grid
+                            x:Name="SendOptionsGrid"
+                            SizeChanged="SendOptionsGrid_SizeChanged">
+                            <Grid.Resources>
+                                <Style x:Key="SendOptionLabelStyle" TargetType="TextBlock">
+                                    <Setter Property="FontSize" Value="14" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                </Style>
+                                <Style x:Key="SendOptionGroupStyle" TargetType="StackPanel">
+                                    <Setter Property="Orientation" Value="Horizontal" />
+                                    <Setter Property="Spacing" Value="6" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                </Style>
+                            </Grid.Resources>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="16" />
@@ -395,71 +417,77 @@
                                 <ColumnDefinition Width="12" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <CheckBox
-                                x:Name="SendHexCheckBox"
-                                Grid.Row="2"
-                                MinWidth="0"
-                                VerticalAlignment="Center"
-                                Content="HEX 发送" />
-                            <TextBlock
+                            <StackPanel Style="{StaticResource SendOptionGroupStyle}">
+                                <TextBlock
+                                    x:Name="SendHexLabel"
+                                    Style="{StaticResource SendOptionLabelStyle}"
+                                    Text="HEX 发送" />
+                                <CheckBox
+                                    x:Name="SendHexCheckBox"
+                                    Width="20"
+                                    MinWidth="0"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.Name="HEX 发送" />
+                            </StackPanel>
+                            <StackPanel
                                 Grid.Column="2"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="行尾" />
-                            <ComboBox
-                                x:Name="LineEndingComboBox"
-                                Grid.Row="2"
-                                Grid.Column="2"
-                                Width="112"
-                                Height="32"
-                                MinHeight="0"
-                                HorizontalAlignment="Stretch"
-                                VerticalAlignment="Center" />
-                            <TextBlock
+                                Style="{StaticResource SendOptionGroupStyle}">
+                                <TextBlock
+                                    Style="{StaticResource SendOptionLabelStyle}"
+                                    Text="行尾" />
+                                <ComboBox
+                                    x:Name="LineEndingComboBox"
+                                    Width="112"
+                                    Height="32"
+                                    MinHeight="0"
+                                    VerticalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel
                                 Grid.Column="4"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="循环发送" />
-                            <ToggleSwitch
-                                x:Name="RepeatSendToggle"
-                                Grid.Row="2"
-                                Grid.Column="4"
-                                Width="66"
-                                Height="32"
-                                MinWidth="0"
-                                VerticalAlignment="Center"
-                                OffContent="关"
-                                OnContent="开"
-                                Toggled="RepeatSendToggle_Toggled">
-                                <ToggleSwitch.RenderTransform>
-                                    <TranslateTransform Y="-1" />
-                                </ToggleSwitch.RenderTransform>
-                            </ToggleSwitch>
-                            <TextBlock
+                                Style="{StaticResource SendOptionGroupStyle}">
+                                <TextBlock
+                                    x:Name="RepeatSendLabel"
+                                    Style="{StaticResource SendOptionLabelStyle}"
+                                    Text="循环发送" />
+                                <ToggleSwitch
+                                    x:Name="RepeatSendToggle"
+                                    Width="44"
+                                    Height="32"
+                                    MinWidth="0"
+                                    VerticalAlignment="Center"
+                                    Toggled="RepeatSendToggle_Toggled">
+                                    <ToggleSwitch.RenderTransform>
+                                        <TranslateTransform Y="-2" />
+                                    </ToggleSwitch.RenderTransform>
+                                </ToggleSwitch>
+                                <TextBlock
+                                    x:Name="RepeatSendStateText"
+                                    MinWidth="14"
+                                    Style="{StaticResource SendOptionLabelStyle}"
+                                    Text="关" />
+                            </StackPanel>
+                            <StackPanel
                                 Grid.Column="6"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                Text="周期 (ms)" />
-                            <NumberBox
-                                x:Name="RepeatIntervalNumberBox"
-                                Grid.Row="2"
-                                Grid.Column="6"
-                                Width="112"
-                                Height="32"
-                                MinHeight="0"
-                                VerticalAlignment="Center"
-                                LargeChange="100"
-                                Minimum="20"
-                                SmallChange="10"
-                                SpinButtonPlacementMode="Compact"
-                                ValueChanged="RepeatIntervalNumberBox_ValueChanged"
-                                Value="1000" />
+                                Style="{StaticResource SendOptionGroupStyle}">
+                                <TextBlock
+                                    x:Name="RepeatIntervalLabel"
+                                    Style="{StaticResource SendOptionLabelStyle}"
+                                    Text="周期 (ms)" />
+                                <NumberBox
+                                    x:Name="RepeatIntervalNumberBox"
+                                    Width="112"
+                                    Height="32"
+                                    MinHeight="0"
+                                    VerticalAlignment="Center"
+                                    LargeChange="100"
+                                    Minimum="20"
+                                    SmallChange="10"
+                                    SpinButtonPlacementMode="Compact"
+                                    ValueChanged="RepeatIntervalNumberBox_ValueChanged"
+                                    Value="1000" />
+                            </StackPanel>
                             <Button
                                 x:Name="ReceiveRecordingButton"
-                                Grid.Row="2"
                                 Grid.Column="8"
                                 Width="88"
                                 Height="32"
@@ -476,7 +504,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBox
                                 x:Name="SendTextBox"
-                                MinHeight="72"
+                                MinHeight="56"
                                 AcceptsReturn="True"
                                 FontFamily="Cascadia Mono"
                                 FontSize="13"
