@@ -8,9 +8,15 @@ namespace Comet.Core.Terminal;
 internal static class TerminalReceiveGrouping
 {
     internal static readonly TimeSpan IdleThreshold = TimeSpan.FromMilliseconds(200);
+    internal static readonly TimeSpan MaximumGroupDuration = TimeSpan.FromMilliseconds(200);
 
-    internal static bool StartsNewGroup(long? previousTimestamp, long receivedTimestamp) =>
+    internal static bool StartsNewGroup(
+        long? groupStartedTimestamp,
+        long? previousTimestamp,
+        long receivedTimestamp) =>
         previousTimestamp is not long previous ||
         receivedTimestamp < previous ||
-        Stopwatch.GetElapsedTime(previous, receivedTimestamp) >= IdleThreshold;
+        Stopwatch.GetElapsedTime(previous, receivedTimestamp) >= IdleThreshold ||
+        groupStartedTimestamp is long groupStarted &&
+        Stopwatch.GetElapsedTime(groupStarted, receivedTimestamp) >= MaximumGroupDuration;
 }

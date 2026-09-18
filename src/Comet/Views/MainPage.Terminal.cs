@@ -15,7 +15,7 @@ public sealed partial class MainPage
         _terminalRenderTimer.Stop();
         _isTerminalRenderPending = false;
         _pendingTerminalText.Clear();
-        _lastReceiveTimestamp = null;
+        ResetReceiveGrouping();
         ViewModel.Terminal.Clear();
         TerminalView.Clear();
         EmptyTerminalPanel.Visibility = Visibility.Visible;

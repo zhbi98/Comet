@@ -110,14 +110,22 @@ internal sealed class TerminalBuffer
                      _lastEntryWasHex == isDisplayedAsHex &&
                      !entry.StartsNewReceiveGroup)
             {
-                // Closely spaced transport chunks remain one stream. The page marks
-                // a new group after an idle interval so its timestamp is not discarded.
+                // Closely spaced transport chunks remain one stream. The page starts
+                // a new group after an idle interval or maximum group duration.
                 AppendHexSeparatorIfNeeded(appended, displayText, isDisplayedAsHex);
                 appended.Append(displayText);
             }
             else
             {
-                EnsureLineBoundary(appended);
+                if (ShouldAppendDetailedEntrySeparator(entry))
+                {
+                    AppendDetailedEntrySeparator(appended);
+                }
+                else
+                {
+                    EnsureLineBoundary(appended);
+                }
+
                 appended.Append(entry.GetDetailedText(displayText));
             }
 
@@ -262,6 +270,24 @@ internal sealed class TerminalBuffer
             {
                 appended.AppendLine();
             }
+        }
+
+        private bool ShouldAppendDetailedEntrySeparator(TerminalEntryModel entry)
+        {
+            if (!entry.IsDetailed || !_lastEntryWasDetailed || _lastDetailedDirection != "RX")
+            {
+                return false;
+            }
+
+            return entry.Direction == "TX" ||
+                   (entry.Direction == "RX" && entry.StartsNewReceiveGroup);
+        }
+
+        private void AppendDetailedEntrySeparator(StringBuilder appended)
+        {
+            // End the preceding entry, then add exactly one empty row.
+            EnsureLineBoundary(appended);
+            appended.AppendLine();
         }
     }
 

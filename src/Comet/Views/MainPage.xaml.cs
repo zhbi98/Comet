@@ -26,6 +26,7 @@ public sealed partial class MainPage : Page
     private int _receiveDrainScheduled;
     private readonly StringBuilder _pendingTerminalText = new();
     private bool _isTerminalRenderPending;
+    private long? _currentReceiveGroupStartedTimestamp;
     private long? _lastReceiveTimestamp;
     private bool _isUnloaded;
     private int _shutdownState;

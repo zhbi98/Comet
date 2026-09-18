@@ -51,7 +51,7 @@ public sealed partial class MainPage
 
             ViewModel.Connection.Open(connectionOptions);
             ViewModel.Terminal.ResetDecoder();
-            _lastReceiveTimestamp = null;
+            ResetReceiveGrouping();
             var parity = SerialPortSettingsConverter.GetParityShortName(connectionOptions.Parity);
             var stopBits = SerialPortSettingsConverter.GetStopBitsShortName(connectionOptions.StopBits);
             AppendTerminalEntry("SYS", $"已连接 {portName}  ·  {connectionOptions.BaudRate} / {connectionOptions.DataBits}{parity}{stopBits}");
@@ -74,10 +74,16 @@ public sealed partial class MainPage
         await StopReceiveRecordingAsync(showConfirmation: false);
         ViewModel.Connection.Close();
         ViewModel.Terminal.ResetDecoder();
-        _lastReceiveTimestamp = null;
+        ResetReceiveGrouping();
         AppendTerminalEntry("SYS", $"{portName} 已断开");
         UpdateConnectionState();
         RefreshPorts();
+    }
+
+    private void ResetReceiveGrouping()
+    {
+        _currentReceiveGroupStartedTimestamp = null;
+        _lastReceiveTimestamp = null;
     }
 
     private void SendButton_Click(object sender, RoutedEventArgs e) => SendComposerPayload(shouldShowErrors: true);
@@ -237,26 +243,50 @@ public sealed partial class MainPage
 
     private void AppendReceiveGroups(IReadOnlyList<SerialBytesReceivedEventArgs> chunks)
     {
+        var firstChunk = chunks[0];
         var groupStart = 0;
-        for (var index = 1; index <= chunks.Count; index++)
+        var groupStartedTimestamp = _currentReceiveGroupStartedTimestamp;
+        var previousTimestamp = _lastReceiveTimestamp;
+        var startsNewReceiveGroup = TerminalReceiveGrouping.StartsNewGroup(
+            groupStartedTimestamp,
+            previousTimestamp,
+            firstChunk.ReceivedTimestamp);
+
+        if (startsNewReceiveGroup)
         {
-            if (index < chunks.Count &&
-                !TerminalReceiveGrouping.StartsNewGroup(
-                    chunks[index - 1].ReceivedTimestamp,
-                    chunks[index].ReceivedTimestamp))
+            groupStartedTimestamp = firstChunk.ReceivedTimestamp;
+        }
+
+        previousTimestamp = firstChunk.ReceivedTimestamp;
+        for (var index = 1; index < chunks.Count; index++)
+        {
+            var receivedTimestamp = chunks[index].ReceivedTimestamp;
+            if (!TerminalReceiveGrouping.StartsNewGroup(
+                    groupStartedTimestamp,
+                    previousTimestamp,
+                    receivedTimestamp))
             {
+                previousTimestamp = receivedTimestamp;
                 continue;
             }
 
-            AppendReceiveGroup(chunks, groupStart, index);
+            AppendReceiveGroup(chunks, groupStart, index, startsNewReceiveGroup);
             groupStart = index;
+            groupStartedTimestamp = receivedTimestamp;
+            startsNewReceiveGroup = true;
+            previousTimestamp = receivedTimestamp;
         }
+
+        AppendReceiveGroup(chunks, groupStart, chunks.Count, startsNewReceiveGroup);
+        _currentReceiveGroupStartedTimestamp = groupStartedTimestamp;
+        _lastReceiveTimestamp = previousTimestamp;
     }
 
     private void AppendReceiveGroup(
         IReadOnlyList<SerialBytesReceivedEventArgs> chunks,
         int start,
-        int end)
+        int end,
+        bool startsNewReceiveGroup)
     {
         var byteCount = 0;
         for (var index = start; index < end; index++)
@@ -274,9 +304,6 @@ public sealed partial class MainPage
         }
 
         var firstChunk = chunks[start];
-        var startsNewReceiveGroup = start > 0 || TerminalReceiveGrouping.StartsNewGroup(
-            _lastReceiveTimestamp,
-            firstChunk.ReceivedTimestamp);
         var text = ViewModel.Terminal.DecodeReceived(data, GetSelectedTextEncoding());
         AppendTerminalEntry(
             "RX",
@@ -284,7 +311,6 @@ public sealed partial class MainPage
             rawBytes: data,
             timestamp: firstChunk.ReceivedAt,
             startsNewReceiveGroup: startsNewReceiveGroup);
-        _lastReceiveTimestamp = chunks[end - 1].ReceivedTimestamp;
     }
 
     private void SerialPort_ErrorOccurred(string message)

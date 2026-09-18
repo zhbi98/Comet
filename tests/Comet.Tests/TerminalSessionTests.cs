@@ -78,10 +78,29 @@ public sealed class TerminalSessionTests
         var belowThreshold = AddElapsed(first, TerminalReceiveGrouping.IdleThreshold - TimeSpan.FromMilliseconds(1));
         var atThreshold = AddElapsed(first, TerminalReceiveGrouping.IdleThreshold);
 
-        Assert.IsTrue(TerminalReceiveGrouping.StartsNewGroup(null, first));
-        Assert.IsFalse(TerminalReceiveGrouping.StartsNewGroup(first, belowThreshold));
-        Assert.IsTrue(TerminalReceiveGrouping.StartsNewGroup(first, atThreshold));
-        Assert.IsTrue(TerminalReceiveGrouping.StartsNewGroup(first, first - 1));
+        Assert.IsTrue(TerminalReceiveGrouping.StartsNewGroup(null, null, first));
+        Assert.IsFalse(TerminalReceiveGrouping.StartsNewGroup(first, first, belowThreshold));
+        Assert.IsTrue(TerminalReceiveGrouping.StartsNewGroup(first, first, atThreshold));
+        Assert.IsTrue(TerminalReceiveGrouping.StartsNewGroup(first, first, first - 1));
+    }
+
+    [TestMethod]
+    public void ReceiveGrouping_StartsNewGroupAtMaximumDuration()
+    {
+        const long first = 1_000_000;
+        var beforeMaximumDuration = AddElapsed(
+            first,
+            TerminalReceiveGrouping.MaximumGroupDuration - TimeSpan.FromMilliseconds(1));
+        var atMaximumDuration = AddElapsed(first, TerminalReceiveGrouping.MaximumGroupDuration);
+
+        Assert.IsFalse(TerminalReceiveGrouping.StartsNewGroup(
+            first,
+            first,
+            beforeMaximumDuration));
+        Assert.IsTrue(TerminalReceiveGrouping.StartsNewGroup(
+            first,
+            beforeMaximumDuration,
+            atMaximumDuration));
     }
 
     [TestMethod]
@@ -110,14 +129,35 @@ public sealed class TerminalSessionTests
         buffer.Append(second, shouldIncludeInDisplay: true, isReceiveDisplayedAsHex: false);
         var thirdUpdate = buffer.Append(third, shouldIncludeInDisplay: true, isReceiveDisplayedAsHex: false);
 
-        Assert.AreEqual(Environment.NewLine + third.GetDetailedText("C"), thirdUpdate.AppendedText);
+        Assert.AreEqual(Environment.NewLine + Environment.NewLine + third.GetDetailedText("C"), thirdUpdate.AppendedText);
         Assert.AreEqual(
-            first.GetDetailedText("A") + "B" + Environment.NewLine + third.GetDetailedText("C"),
+            first.GetDetailedText("A") + "B" + Environment.NewLine + Environment.NewLine + third.GetDetailedText("C"),
             buffer.GetSessionText());
 
         buffer.SetReceiveAsHex(true);
         Assert.AreEqual(
-            first.GetDetailedText("41") + " 42" + Environment.NewLine + third.GetDetailedText("43"),
+            first.GetDetailedText("41") + " 42" + Environment.NewLine + Environment.NewLine + third.GetDetailedText("43"),
+            buffer.GetSessionText());
+    }
+
+    [TestMethod]
+    public void DetailedTransmitAfterReceive_AddsBlankLineBeforeNextCommand()
+    {
+        var buffer = new TerminalBuffer();
+        var firstTransmit = CreateDetailedEntry("TX", "A", "12:34:56.000");
+        var receive = CreateDetailedEntry("RX", "B", "12:34:56.100");
+        var secondTransmit = CreateDetailedEntry("TX", "C", "12:34:56.200");
+
+        buffer.Append(firstTransmit, shouldIncludeInDisplay: true, isReceiveDisplayedAsHex: false);
+        buffer.Append(receive, shouldIncludeInDisplay: true, isReceiveDisplayedAsHex: false);
+        var update = buffer.Append(secondTransmit, shouldIncludeInDisplay: true, isReceiveDisplayedAsHex: false);
+
+        Assert.AreEqual(
+            Environment.NewLine + Environment.NewLine + secondTransmit.GetDetailedText("C"),
+            update.AppendedText);
+        Assert.AreEqual(
+            firstTransmit.GetDetailedText("A") + Environment.NewLine + receive.GetDetailedText("B") +
+            Environment.NewLine + Environment.NewLine + secondTransmit.GetDetailedText("C"),
             buffer.GetSessionText());
     }
 
@@ -198,6 +238,15 @@ public sealed class TerminalSessionTests
         IsHex = false,
         RawBytes = bytes,
         StartsNewReceiveGroup = startsNewReceiveGroup
+    };
+
+    private static TerminalEntryModel CreateDetailedEntry(string direction, string text, string time) => new()
+    {
+        Time = time,
+        Direction = direction,
+        Text = text,
+        IsDetailed = true,
+        IsHex = false
     };
 
     private static long AddElapsed(long timestamp, TimeSpan elapsed) =>
