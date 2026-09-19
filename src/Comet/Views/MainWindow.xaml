@@ -60,10 +60,7 @@
                         BorderThickness="0"
                         CornerRadius="6"
                         ToolTipService.ToolTip="菜单">
-                        <FontIcon
-                            FontFamily="{StaticResource SymbolThemeFontFamily}"
-                            FontSize="15"
-                            Glyph="&#xE700;" />
+                        <Image Width="17" Height="17" Source="ms-appx:///Assets/Menu.svg" />
                         <Button.Flyout>
                             <MenuFlyout
                                 MenuFlyoutPresenterStyle="{StaticResource MainMenuFlyoutPresenterStyle}"

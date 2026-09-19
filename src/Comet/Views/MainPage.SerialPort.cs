@@ -7,6 +7,7 @@ using Comet.ViewModels;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Comet.Views;
 
@@ -456,7 +457,10 @@ public sealed partial class MainPage
 
         ConnectionDot.Fill = isConnected ? _connectedBrush : _disconnectedBrush;
         SerialOpenCloseText.Text = isConnected ? "断开串口" : "连接串口";
-        SerialOpenCloseIcon.Glyph = isConnected ? "\uE8D7" : "\uE8CE";
+        SerialOpenCloseIcon.Source = new SvgImageSource(new Uri(
+            isConnected
+                ? "ms-appx:///Assets/Disconnect.svg"
+                : "ms-appx:///Assets/Connect.svg"));
         UpdateReceiveRecordingState();
         if (isConnected)
         {

@@ -172,7 +172,7 @@ dotnet publish .\src\Comet\Comet.csproj `
   -o .\artifacts\publish\win-x64
 ```
 
-> **重要：** Comet 不是单文件应用。发布时必须完整保留 EXE、DLL、PRI、资源和运行时文件；只复制 `Comet.exe` 无法构成可用发布包。
+> **重要：** Comet 不是单文件应用。发布时必须完整保留 EXE、DLL、PRI、资源和运行时文件；只复制 `Comet.exe` 无法构成可用发布包。界面使用的 `Assets/*.svg` 会由项目配置复制到发布目录，压缩便携包时必须保留整个 `Assets` 目录。
 
 ### 加入文档并压缩
 

@@ -69,7 +69,12 @@
                     Margin="0,0,-12,0"
                     VerticalScrollBarVisibility="Auto">
                     <ScrollViewer.Resources>
+                        <!-- Keep the WinUI hover indicator inside this panel's 8-DIP gutter. -->
+                        <x:Double x:Key="ScrollBarSize">8</x:Double>
+                        <x:Double x:Key="ScrollBarVerticalThumbMinWidth">8</x:Double>
+                        <x:Double x:Key="ScrollBarThumbOffset">0</x:Double>
                         <Style TargetType="ScrollBar">
+                            <Setter Property="MinWidth" Value="8" />
                             <Setter Property="Width" Value="8" />
                         </Style>
                     </ScrollViewer.Resources>
@@ -103,10 +108,7 @@
                                 AutomationProperties.Name="收起连接设置"
                                 Click="ConnectionPanelCollapseButton_Click"
                                 ToolTipService.ToolTip="收起连接设置">
-                                <FontIcon
-                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                    FontSize="14"
-                                    Glyph="&#xE76B;" />
+                                <Image Width="16" Height="16" Source="ms-appx:///Assets/CollapsePanel.svg" />
                             </Button>
                         </Grid>
 
@@ -131,10 +133,7 @@
                                         VerticalAlignment="Bottom"
                                         Click="RefreshPortsButton_Click"
                                         ToolTipService.ToolTip="刷新串口">
-                                        <FontIcon
-                                            FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                            FontSize="14"
-                                            Glyph="&#xE72C;" />
+                                        <Image Width="16" Height="16" Source="ms-appx:///Assets/Refresh.svg" />
                                     </Button>
                                 </Grid>
 
@@ -209,11 +208,11 @@
                                 Click="SerialOpenCloseButton_Click"
                                 Style="{StaticResource AccentButtonStyle}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon
+                                    <Image
                                         x:Name="SerialOpenCloseIcon"
-                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                        FontSize="14"
-                                        Glyph="&#xE8CE;" />
+                                        Width="18"
+                                        Height="18"
+                                        Source="ms-appx:///Assets/Connect.svg" />
                                     <TextBlock x:Name="SerialOpenCloseText" Text="连接串口" />
                                 </StackPanel>
                             </Button>
@@ -268,10 +267,7 @@
                                 Click="ConnectionPanelExpandButton_Click"
                                 ToolTipService.ToolTip="展开连接设置"
                                 Visibility="Collapsed">
-                                <FontIcon
-                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                    FontSize="14"
-                                    Glyph="&#xE76C;" />
+                                <Image Width="16" Height="16" Source="ms-appx:///Assets/ExpandPanel.svg" />
                             </Button>
                             <TextBlock
                                 Margin="0,-2,0,2"
@@ -319,10 +315,7 @@
                                     AutomationProperties.Name="快捷指令面板开关"
                                     Click="TogglePresetPanelButton_Click"
                                     ToolTipService.ToolTip="显示快捷指令">
-                                    <FontIcon
-                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                        FontSize="14"
-                                        Glyph="&#xE8FD;" />
+                                    <Image Width="16" Height="16" Source="ms-appx:///Assets/PresetPanel.svg" />
                                 </Button>
                                 <Button
                                     x:Name="SaveLogButton"
@@ -331,10 +324,7 @@
                                     Padding="0"
                                     Click="SaveLogButton_Click"
                                     ToolTipService.ToolTip="保存日志">
-                                    <FontIcon
-                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                        FontSize="14"
-                                        Glyph="&#xE74E;" />
+                                    <Image Width="16" Height="16" Source="ms-appx:///Assets/Save.svg" />
                                 </Button>
                                 <Button
                                     x:Name="ClearTerminalButton"
@@ -343,10 +333,7 @@
                                     Padding="0"
                                     Click="ClearTerminalButton_Click"
                                     ToolTipService.ToolTip="清空终端">
-                                    <FontIcon
-                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                        FontSize="14"
-                                        Glyph="&#xE74D;" />
+                                    <Image Width="16" Height="16" Source="ms-appx:///Assets/Delete.svg" />
                                 </Button>
                             </StackPanel>
                         </StackPanel>
@@ -372,12 +359,11 @@
                                 VerticalAlignment="Center"
                                 IsHitTestVisible="False"
                                 Spacing="8">
-                                <FontIcon
+                                <Image
                                     HorizontalAlignment="Center"
-                                    FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                    FontSize="32"
-                                    Foreground="#98A8B8"
-                                    Glyph="&#xE756;" />
+                                    Width="32"
+                                    Height="32"
+                                    Source="ms-appx:///Assets/EmptyTerminal.svg" />
                                 <TextBlock Foreground="{StaticResource CometMutedBrush}" Text="等待串口数据..." />
                             </StackPanel>
                         </Grid>
@@ -521,10 +507,11 @@
                                     <KeyboardAccelerator Key="Enter" Modifiers="Control" />
                                 </Button.KeyboardAccelerators>
                                 <StackPanel Spacing="4">
-                                    <FontIcon
+                                    <Image
                                         HorizontalAlignment="Center"
-                                        FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                        Glyph="&#xE724;" />
+                                        Width="16"
+                                        Height="16"
+                                        Source="ms-appx:///Assets/SendLight.svg" />
                                     <TextBlock HorizontalAlignment="Center" Text="发送" />
                                 </StackPanel>
                             </Button>
@@ -599,7 +586,12 @@
                                     ScrollViewer.VerticalScrollMode="Enabled"
                                     SelectionMode="None">
                                     <ListView.Resources>
+                                        <!-- ListView owns its internal ScrollViewer, so retain the same local gutter. -->
+                                        <x:Double x:Key="ScrollBarSize">8</x:Double>
+                                        <x:Double x:Key="ScrollBarVerticalThumbMinWidth">8</x:Double>
+                                        <x:Double x:Key="ScrollBarThumbOffset">0</x:Double>
                                         <Style TargetType="ScrollBar">
+                                            <Setter Property="MinWidth" Value="8" />
                                             <Setter Property="Width" Value="8" />
                                         </Style>
                                     </ListView.Resources>
@@ -626,12 +618,14 @@
                                                     <TextBox
                                                         x:Name="NewPresetNameTextBox"
                                                         MinHeight="30"
+                                                        Padding="8,4,8,0"
                                                         PlaceholderText="名称（可选）" />
                                                     <TextBox
                                                         x:Name="NewPresetCommandTextBox"
                                                         Grid.Column="1"
                                                         MinHeight="30"
                                                         FontFamily="Cascadia Mono"
+                                                        Padding="8,4,8,0"
                                                         PlaceholderText="输入指令内容" />
                                                 </Grid>
                                                 <Grid Grid.Row="1" ColumnSpacing="8">
@@ -663,10 +657,7 @@
                                                         IsEnabled="{x:Bind ViewModel.CommandPresets.CanAdd, Mode=OneWay}"
                                                         Style="{StaticResource AccentButtonStyle}">
                                                         <StackPanel Orientation="Horizontal" Spacing="7">
-                                                            <FontIcon
-                                                                FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                                                FontSize="13"
-                                                                Glyph="&#xE710;" />
+                                                            <Image Width="15" Height="15" Source="ms-appx:///Assets/Add.svg" />
                                                             <TextBlock Text="添加" />
                                                         </StackPanel>
                                                     </Button>
@@ -701,17 +692,21 @@
                                                             <ColumnDefinition Width="*" />
                                                         </Grid.ColumnDefinitions>
                                                         <TextBox
-                                                            MinHeight="30"
+                                                            Height="26"
+                                                            MinHeight="0"
                                                             FontSize="12"
                                                             FontWeight="SemiBold"
+                                                            Padding="8,4,8,0"
                                                             LostFocus="PresetNameTextBox_LostFocus"
                                                             Text="{Binding Name, Mode=OneWay}"
                                                             ToolTipService.ToolTip="可直接修改名称" />
                                                         <TextBox
                                                             Grid.Column="1"
-                                                            MinHeight="30"
+                                                            Height="26"
+                                                            MinHeight="0"
                                                             FontFamily="Cascadia Mono"
                                                             FontSize="11"
+                                                            Padding="8,4,8,0"
                                                             LostFocus="PresetCommandTextBox_LostFocus"
                                                             Text="{Binding Command, Mode=OneWay}"
                                                             ToolTipService.ToolTip="可直接修改指令内容" />
@@ -735,13 +730,12 @@
                                                             PointerPressed="PresetDragHandle_PointerPressed"
                                                             PointerReleased="PresetDragHandle_PointerEnded"
                                                             ToolTipService.ToolTip="点击“编辑排序”后拖动">
-                                                            <FontIcon
+                                                            <Image
                                                                 HorizontalAlignment="Center"
                                                                 VerticalAlignment="Center"
-                                                                FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                                                FontSize="12"
-                                                                Foreground="{StaticResource CometMutedBrush}"
-                                                                Glyph="&#xE700;" />
+                                                                Width="12"
+                                                                Height="12"
+                                                                Source="ms-appx:///Assets/DragHandle.svg" />
                                                         </Border>
                                                         <Border
                                                             Grid.Column="1"
@@ -765,16 +759,20 @@
                                                             Tag="{Binding Id}" />
                                                         <Button
                                                             Grid.Column="3"
-                                                            Width="28"
+                                                            Width="60"
                                                             Height="26"
-                                                            Padding="0"
+                                                            Padding="7,2"
                                                             Click="SendPresetButton_Click"
                                                             Tag="{Binding Id}"
                                                             ToolTipService.ToolTip="立即发送">
-                                                            <FontIcon
-                                                                FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                                                FontSize="11"
-                                                                Glyph="&#xE724;" />
+                                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                <TextBlock Text="发送" />
+                                                                <Image
+                                                                    Width="14"
+                                                                    Height="14"
+                                                                    Margin="0,1,0,0"
+                                                                    Source="ms-appx:///Assets/Send.svg" />
+                                                            </StackPanel>
                                                         </Button>
                                                         <Button
                                                             Grid.Column="4"
@@ -784,10 +782,7 @@
                                                             Click="DeletePresetButton_Click"
                                                             Tag="{Binding Id}"
                                                             ToolTipService.ToolTip="删除预设">
-                                                            <FontIcon
-                                                                FontFamily="{StaticResource SymbolThemeFontFamily}"
-                                                                FontSize="11"
-                                                                Glyph="&#xE74D;" />
+                                                            <Image Width="13" Height="13" Source="ms-appx:///Assets/Delete.svg" />
                                                         </Button>
                                                     </Grid>
                                                 </Grid>
